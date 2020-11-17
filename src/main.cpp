@@ -1,49 +1,23 @@
 #include "../inc/Node.h"
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
-	pthread_t threads[4];
+	pthread_t threads[5];
 	int rc;
 	Node *node;
-
 	cout << "Mode: " << ALL2ALL << "->All-to-All, ";
 	cout << GOSSIP << "->Gossip-style" << endl;
-	if (argc < 2) {
-		node = new Node();
-	} else {
+	if (argc < 2) node = new Node();
+	else {
 		ModeType mode = ALL2ALL;
-		if (atoi(argv[1]) == 1) {
-			mode = GOSSIP;
-		}
+		if (atoi(argv[1]) == 1) mode = GOSSIP;
 		node = new Node(mode);
 	}
 	cout << "Running mode: " << node->runningMode << endl;
-	cout << endl;
-
-	char host[100] = {0};
-	struct hostent *hp;
-
-	if (gethostname(host, sizeof(host)) < 0) {
-		cout << "error: gethostname" << endl;
-		return 0;
-	}
-	
-	if ((hp = gethostbyname(host)) == NULL) {
-		cout << "error: gethostbyname" << endl;
-		return 0;
-	}
-
-	if (hp->h_addr_list[0] == NULL) {
-		cout << "error: no ip" << endl;
-		return 0;
-	}
-	//cout << "hostname " << hp->h_name << endl;
-	Member own(inet_ntoa(*(struct in_addr*)hp->h_addr_list[0]), PORT, 
-		node->localTimestamp, node->heartbeatCounter);
+	Member own(getIP(), PORT, node->localTimestamp, node->heartbeatCounter);
 	node->nodeInformation = own;
 	cout << "[NEW] Starting Node at " << node->nodeInformation.ip << "/";
 	cout << node->nodeInformation.port << "..." << endl;
-
 	int *ret;
 	string s;
 	string cmd;
@@ -54,17 +28,14 @@ int main(int argc, char *argv[])
 		cout << "Error:unable to create thread," << rc << endl;
 		exit(-1);
 	}
-
 	if ((rc = pthread_create(&threads[2], NULL, runTcpServer, (void *)node->tcpServent)) != 0) {
 		cout << "Error:unable to create thread," << rc << endl;
 		exit(-1);
 	}
-
 	if ((rc = pthread_create(&threads[4], NULL, runTcpSender, (void *)node->tcpServent)) != 0) {
 		cout << "Error:unable to create thread," << rc << endl;
 		exit(-1);
 	}
-
 	node->localFilelist.clear(); // for testing
 	/*node->localFilelist["sdfsfilename1"] = "localfilename1";
 	node->localFilelist["sdfsfilename2"] = "localfilename2";*/
@@ -96,26 +67,21 @@ int main(int argc, char *argv[])
 				node->membershipList.clear();
 				node->restartElection(); // clean up leader info
 				pthread_join(threads[1], (void **)&ret);
-
 				string message = "["+to_string(node->localTimestamp)+"] node "+node->nodeInformation.ip+"/"+node->nodeInformation.port+" is left";
 				cout << "[LEAVE]" << message.c_str() << endl;
 				node->logWriter->printTheLog(LEAVE, message);
 				sleep(2); // wait for logging
-
 				joined = false;
 		} else if(cmd == "id"){
 			cout << "ID: (" << node->nodeInformation.ip << ", " << node->nodeInformation.port << ")" << endl;
 		} else if(cmd == "member"){
-			node->debugMembershipList();
+			debugMembershipList(node);
 		} else if(cmd == "switch") {
-			if(joined){
-				node->requestSwitchingMode();
-			}
+			if(joined) node->requestSwitchingMode();
 		} else if(cmd == "mode") {
 			cout << "In " << node->runningMode << " mode" << endl;
 		} else if(cmd == "exit"){
-			cout << "exiting..." << endl;
-			break;
+			cout << "exiting..." << endl; break;
 		} else if (cmd == "put" && joined){ // MP2 op1
 			if(cmdLineInput.size() < 3){
 				cout << "USAGE: put filename sdfsfilename" << endl;
@@ -125,13 +91,12 @@ int main(int argc, char *argv[])
 				string localfilename = cmdLineInput[1];
 				string sdfsfilename = cmdLineInput[2];
 				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename);
-				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl; 
+				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
 				if (access(localfilename.c_str(), F_OK) != -1) {
 					node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 				} else {
 					cout << "[PUT] The file " << localfilename << " is not existed" << endl;
 				}
-				
 			} else {
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
 			}
@@ -143,24 +108,21 @@ int main(int argc, char *argv[])
 			string sdfsfilename = cmdLineInput[1];
 			string localfilename = cmdLineInput[2];
 			if (node->localFilelist.find(sdfsfilename) != node->localFilelist.end()) {
-				// found
 				cout << "[GET] You have sdfsfilename " << sdfsfilename << " as " << node->localFilelist[sdfsfilename] << endl;
 				continue;
 			}
 			if (node->fileList.find(sdfsfilename) == node->fileList.end()) {
-				// not found
 				cout << "[GET] Get sdfsfilename " << sdfsfilename << " failed" << endl;
 				continue;
 			} else {
 				if (node->fileList[sdfsfilename].size()==1 && node->isBlackout) {
-					// in 1st pass, the Leader is backup, wait for a minute
 					cout << "[GET] Get sdfsfilename " << sdfsfilename << " failed" << endl;
 					continue;
 				}
 			}
 
 			Messages outMsg(DNSGET, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename);
-			cout << "[GET] Got sdfsfilename: " << sdfsfilename << " with localfilename: " << localfilename << endl; 
+			cout << "[GET] Got sdfsfilename: " << sdfsfilename << " with localfilename: " << localfilename << endl;
 			node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 		} else if (cmd == "delete" && joined){ // MP2 op3
 			if(cmdLineInput.size() < 2){
@@ -170,7 +132,7 @@ int main(int argc, char *argv[])
 			if (!node->isBlackout) {
 				string sdfsfilename = cmdLineInput[1];
 				Messages outMsg(DELETE, node->nodeInformation.ip + "::" + sdfsfilename);
-				cout << "[DELETE] Got sdfsfilename: " << sdfsfilename << endl; 
+				cout << "[DELETE] Got sdfsfilename: " << sdfsfilename << endl;
 				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
@@ -189,7 +151,7 @@ int main(int argc, char *argv[])
 		} else if (cmd == "store"){ // MP2 op5
 			node->listLocalFiles();
 		} else if (cmd == "lsall"){
-			node->debugSDFSFileList();
+			debugSDFSFileList(node);
 		} else {
 			cout << "[join] join to a group via fixed introducer" << endl;
 			cout << "[leave] leave the group" << endl;
@@ -205,7 +167,7 @@ int main(int argc, char *argv[])
 			cout << "[ls] list all machine (VM) addresses where this file is currently being stored" << endl;
 			cout << "[lsall] list all sdfsfilenames with positions" << endl;
 			cout << "[store] list all files currently being stored at this machine" << endl << endl;
-		} // More command line interface if wanted 
+		} // More command line interface if wanted
 	}
 
 	pthread_kill(threads[0], SIGUSR1);
@@ -213,8 +175,6 @@ int main(int argc, char *argv[])
 	if(joined){
 		pthread_kill(threads[1], SIGUSR1);
 	}
-
 	pthread_exit(NULL);
-
 	return 1;
 }

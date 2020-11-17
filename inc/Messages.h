@@ -1,7 +1,7 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
-#include <iostream> 
+#include <iostream>
 #include <string>
 #include "MessageTypes.h"
 
@@ -11,7 +11,6 @@ class Messages {
 public:
 	MessageType type;
 	string payload;
-
 	Messages(string payloadMessage);
 	Messages(MessageType messageType, string payloadMessage);
 	string toString();

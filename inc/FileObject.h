@@ -1,7 +1,7 @@
 #ifndef FILEOBJECT_H
 #define FILEOBJECT_H
 
-#include <iostream> 
+#include <iostream>
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,7 +18,7 @@ public:
 	int positionOnHashring;
 	FileObject(string fileName);
 	string toString();
-    string getChecksum();
+    string getChecksum(); //hash the file contents using iterator over whole file
 	int getPositionOnHashring();
 };
 

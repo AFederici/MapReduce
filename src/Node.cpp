@@ -1,46 +1,12 @@
 #include "../inc/Node.h"
 
-
-//add another function to Node class for failure detection
-//call function before sender (heartbeat) after listenForHeartbeat
-
-Node::Node()
-{
-	// create a udp object
+Node::Node(){
 	udpServent = new UdpSocket();
 	tcpServent = new TcpSocket();
 	hashRing = new HashRing();
 	localTimestamp = 0;
 	heartbeatCounter = 0;
-	//time(&startTimestamp);
-	// byteSent = 0;
-	// byteReceived = 0;
 	runningMode = ALL2ALL;
-	activeRunning = false;
-	prepareToSwitch = false;
-	logWriter = new Logger(LOGGING_FILE_NAME);
-	leaderPosition = -1;
-	proposedTime = 0;
-	electedTime = 0;
-	joinTimestamp = "";
-	possibleSuccessorIP = "";
-	leaderIP = "";
-	leaderPort = ""; 
-	isBlackout = true;
-}
-
-Node::Node(ModeType mode)
-{
-	// create a udp object
-	udpServent = new UdpSocket();
-	tcpServent = new TcpSocket();
-	hashRing = new HashRing();
-	localTimestamp = 0;
-	heartbeatCounter = 0;
-	//time(&startTimestamp);
-	// byteSent = 0;
-	// byteReceived = 0;
-	runningMode = mode;
 	activeRunning = false;
 	prepareToSwitch = false;
 	logWriter = new Logger(LOGGING_FILE_NAME);
@@ -54,133 +20,81 @@ Node::Node(ModeType mode)
 	isBlackout = true;
 }
 
+Node::Node(ModeType mode) : Node() { runningMode = mode; }
+
 void Node::startActive()
 {
 	membershipList.clear();
 	restartElection();
 	// inserting its own into the list
 	time(&startTimestamp);
-	string startTime = ctime(&startTimestamp);
-	startTime = startTime.substr(0, startTime.find("\n"));
-	tuple<string,string,string> mapKey(nodeInformation.ip, nodeInformation.port, startTime);
-	tuple<int, int, int> valueTuple(nodeInformation.heartbeatCounter, nodeInformation.timestamp, 0);
-	membershipList[mapKey] = valueTuple;
-			
-	debugMembershipList();
+	string startTime = updateNodeHeartbeatAndTime();
+	debugMembershipList(this);
 	joinTimestamp = startTime; // for hashRing
 	getPositionOnHashring(); // update its hashRingPosition
 }
 
-void Node::computeAndPrintBW(double diff)
-{
-#ifdef LOG_VERBOSE
-	cout << "total " << udpServent->byteSent << " bytes sent" << endl;
-	cout << "total " << udpServent->byteReceived << " bytes received" << endl;
-	printf("elasped time is %.2f s\n", diff);
-#endif
-	if (diff > 0) {
-		double bandwidth = udpServent->byteSent/diff;
-		string message = "["+to_string(this->localTimestamp)+"] B/W usage: "+to_string(bandwidth)+" bytes/s";
-#ifdef LOG_VERBOSE
-		printf("%s\n", message.c_str());
-#endif
-		this->logWriter->printTheLog(BANDWIDTH, message);
-	}
-}
-
-void Node::updateNodeHeartbeatAndTime()
+string Node::updateNodeHeartbeatAndTime()
 {
 	string startTime = ctime(&startTimestamp);
 	startTime = startTime.substr(0, startTime.find("\n"));
 	tuple<string, string, string> keyTuple(nodeInformation.ip, nodeInformation.port,startTime);
 	tuple<int, int, int> valueTuple(heartbeatCounter, localTimestamp, 0);
 	this->membershipList[keyTuple] = valueTuple;
+	return startTime;
 }
 
 string Node::populateMembershipMessage()
 {
 	//The string we send will be seperated line by line --> IP,PORT,HeartbeatCounter,FailFlag
 	string mem_list_to_send = "";
-	//Assume destination already exists in the membership list of this node, just a normal heartbeat
 	switch (this->runningMode)
 	{
 		case GOSSIP:
-			for (auto& element: this->membershipList) {
-				tuple<string, string, string> keyTuple = element.first;
-				tuple<int, int, int> valueTuple = element.second;
-				mem_list_to_send += get<0>(keyTuple) + "," + get<1>(keyTuple) + "," + get<2>(keyTuple) + ","; 
-				mem_list_to_send += to_string(get<0>(valueTuple)) + "," + to_string(get<2>(valueTuple)) + "\n";
-			}
-			break;
-		
+			return populateIntroducerMembershipMessage(); // code re-use
 		default:
 			string startTime = ctime(&startTimestamp);
 			startTime = startTime.substr(0, startTime.find("\n"));
 			mem_list_to_send += nodeInformation.ip + "," + nodeInformation.port + "," + startTime + ",";
 			mem_list_to_send += to_string(heartbeatCounter) + "," + to_string(0) + "\n";
-			break;
+			return mem_list_to_send;
 	}
-	return mem_list_to_send;
 }
 
-string Node::populateIntroducerMembershipMessage(){
+string Node::populateIntroducerMembershipMessage() {
 	string mem_list_to_send = "";
 	for (auto& element: this->membershipList) {
 		tuple<string, string, string> keyTuple = element.first;
 		tuple<int, int, int> valueTuple = element.second;
-		mem_list_to_send += get<0>(keyTuple) + "," + get<1>(keyTuple) + "," + get<2>(keyTuple) + ","; 
+		mem_list_to_send += get<0>(keyTuple) + "," + get<1>(keyTuple) + "," + get<2>(keyTuple) + ",";
 		mem_list_to_send += to_string(get<0>(valueTuple)) + "," + to_string(get<2>(valueTuple)) + "\n";
 	}
 	return mem_list_to_send;
 }
 
-/**
- * 
- * HeartbeatToNode: Sends a string version of the membership list to the receiving node. The receiving node will convert the string to
- * a <string, long> map where the key is the Addresss (IP + PORT) and value is the heartbeat counter. We then compare the Member.
- * 
- **/
 int Node::heartbeatToNode()
 {
-	// 3. prepare to send heartbeating, and 
+	string msg;
 	string mem_list_to_send = populateMembershipMessage();
 	vector<tuple<string,string,string>> targetNodes = getRandomNodesToGossipTo();
-	
-	//Now we have messages ready to send, need to invoke UDP client to send 
 #ifdef LOG_VERBOSE
 	cout << "pick " << targetNodes.size() << " of " << this->membershipList.size()-1;
 	cout << " members" << endl;
 #endif
-	
-	// 4. do gossiping
 	for (uint i=0; i<targetNodes.size(); i++) {
-		//cout << targetNodes[i].first << "/" << targetNodes[i].second << endl;
 		Member destination(get<0>(targetNodes[i]), get<1>(targetNodes[i]));
-
 		string message = "["+to_string(this->localTimestamp)+"] node "+destination.ip+"/"+destination.port+"/"+get<2>(targetNodes[i]);
 #ifdef LOG_VERBOSE
 		cout << "[Gossip]" << message.c_str() << endl;
 #endif
 		this->logWriter->printTheLog(GOSSIPTO, message);
-
-		//cout << mem_list_to_send.size() << " Bytes sent..." << endl;
-		// byteSent += mem_list_to_send.size();
 		if (isLeader) {
-			//Messages msg(LEADERHEARTBEAT, mem_list_to_send);
-			if (isBlackout) {
-				string msg = populateSDFSFileList(LEADERPENDING, mem_list_to_send);
-				udpServent->sendMessage(destination.ip, destination.port, msg);
-			} else {
-				string msg = populateSDFSFileList(LEADERHEARTBEAT, mem_list_to_send);
-				udpServent->sendMessage(destination.ip, destination.port, msg);
-			}
-		} else {
-			//Messages msg(HEARTBEAT, mem_list_to_send);
-			string msg = populateSDFSFileList(HEARTBEAT, mem_list_to_send);
-			udpServent->sendMessage(destination.ip, destination.port, msg);
+			if (isBlackout) msg = populateSDFSFileList(LEADERPENDING, mem_list_to_send);
+			else msg = populateSDFSFileList(LEADERHEARTBEAT, mem_list_to_send);
 		}
+		else msg = populateSDFSFileList(HEARTBEAT, mem_list_to_send);
+		udpServent->sendMessage(destination.ip, destination.port, msg);
 	}
-	
 	return 0;
 }
 
@@ -197,27 +111,27 @@ int Node::failureDetection(){
 		cout << "checking " << get<0>(keyTuple) << "/" << get<1>(keyTuple) << "/" << get<2>(keyTuple) << endl;
 #endif
 		if ((get<0>(keyTuple).compare(nodeInformation.ip) == 0) && (get<1>(keyTuple).compare(nodeInformation.port) == 0)) {
-			// do not check itself
 #ifdef LOG_VERBOSE
-			cout << "skip it" << endl;
-#endif	
+			cout << "do not check itself" << endl;
+#endif
 			continue;
 		}
+		//node has not failed
 		if(get<2>(valueTuple) == 0){
+			//timeout passed, set as failed
 			if(localTimestamp - get<1>(valueTuple) > T_timeout){
 				//cout << "Got " << get<0>(keyTuple) << "/" << get<1>(keyTuple) << "/" << get<2>(keyTuple) << endl;
 				//cout << "local time " << localTimestamp << " vs. " << get<1>(valueTuple) << endl;
 				get<1>(this->membershipList[keyTuple]) = localTimestamp;
 				get<2>(this->membershipList[keyTuple]) = 1;
-				
 				string message = "["+to_string(this->localTimestamp)+"] node "+get<0>(keyTuple)+"/"+get<1>(keyTuple)+"/"+get<2>(keyTuple)+": Local Failure";
 				cout << "[FAIL]" << message.c_str() << endl;
 				this->logWriter->printTheLog(FAIL, message);
 				if(isLeader){
-					// clearn up fileList
 					Member deletedNode(get<0>(keyTuple), get<1>(keyTuple));
 					int deletedNodePostion = hashingId(deletedNode, get<2>(keyTuple));
 					hashRing->removeNode(deletedNodePostion);
+					//for each file, remove the deleted node from its location vector
 					for (auto& element: fileList) {
 						vector<int> newEntry;
 						for(unsigned int i = 0; i < element.second.size(); i++){
@@ -234,7 +148,8 @@ int Node::failureDetection(){
 						tuple<string,string,string> sender = senders.second;
 						if ((get<0>(keyTuple).compare(get<0>(sender))==0) &&
 							get<0>(pendingRequestSent[sdfsfilename]) &&
-							(get<0>(pendingRequests[sdfsfilename])!=-1)) {
+							(get<0>(pendingRequests[sdfsfilename])!=-1))
+						{
 							// it sent out, and is not finished, cannot help
 							// we lost the data from the client
 							cout << "[PUT] client itself fails, we cannot help, remove request" << endl;
@@ -245,7 +160,8 @@ int Node::failureDetection(){
 						}
 						if ((get<0>(keyTuple).compare(get<1>(sender))==0) &&
 							get<1>(pendingRequestSent[sdfsfilename]) &&
-							(get<1>(pendingRequests[sdfsfilename])!=-1)) {
+							(get<1>(pendingRequests[sdfsfilename])!=-1))
+						{
 							// the sender fails during 2nd pass
 							// replace the sent
 							cout << "[PUT] One of the sender " << get<0>(keyTuple) << " failed, try again" << endl;
@@ -258,29 +174,24 @@ int Node::failureDetection(){
 						}
 						if ((get<0>(keyTuple).compare(get<2>(sender))==0) &&
 							get<2>(pendingRequestSent[sdfsfilename]) &&
-							(get<2>(pendingRequests[sdfsfilename])!=-1)) {
+							(get<2>(pendingRequests[sdfsfilename])!=-1))
+						{
 							// it sent out, but replicates are failed
 							// restart again
 							cout << "[PUT/REREPLICATE] The sender " << get<0>(keyTuple) << " failed, try again" << endl;
 							pendingRequests.erase(sdfsfilename);
 						}
 					}
-					
+
 				}
-				
+
 			}
 		}
+		//check for cleanup on already failed nodes
 		else{
 			if(localTimestamp - get<1>(valueTuple) > T_cleanup){
-				// core dumped happened here; bug fix
 				auto iter = this->membershipList.find(keyTuple);
 				if (iter != this->membershipList.end()) {
-					//cout << "Got " << get<0>(iter->first) << "/" << get<1>(iter->first) << "/" << get<2>(iter->first);
-					//cout << " with " << to_string(get<0>(iter->second)) << "/";
-					//cout << to_string(get<1>(iter->second)) << "/";
-					//cout << to_string(get<2>(iter->second)) << endl;
-					//cout << this->membershipList[keyTuple]
-					//this->membershipList.erase(iter);
 					removedVec.push_back(keyTuple);
 				}
 			}
@@ -299,12 +210,10 @@ int Node::failureDetection(){
 			}
 
 			this->membershipList.erase(iter);
-
 			string message = "["+to_string(this->localTimestamp)+"] node "+get<0>(removedVec[i])+"/"+get<1>(removedVec[i])+"/"+get<2>(removedVec[i])+": REMOVED FROM LOCAL MEMBERSHIP LIST";
 			cout << "[REMOVE]" << message.c_str() << endl;
 			this->logWriter->printTheLog(REMOVE, message);
-
-			//this->debugMembershipList();
+			//debugMembershipList(this);
 		}
 	}
 	if (this->membershipList.size()==1 || leaderRemoved) { // Only me or leader failed, restart leader election
@@ -315,13 +224,10 @@ int Node::failureDetection(){
 	return 0;
 }
 
-
-int Node::joinSystem(Member introducer) 
+int Node::joinSystem(Member introducer)
 {
 	string mem_list_to_send = populateMembershipMessage();
-	//Messages msg(JOIN, mem_list_to_send);
 	string msg = populateSDFSFileList(JOIN, mem_list_to_send);
-
 	string message = "["+to_string(this->localTimestamp)+"] sent a request to "+introducer.ip+"/"+introducer.port+", I am "+nodeInformation.ip+"/"+nodeInformation.port;
 	cout << "[JOIN]" << message.c_str() << endl;
 	this->logWriter->printTheLog(JOINGROUP, message);
@@ -332,23 +238,18 @@ int Node::joinSystem(Member introducer)
 int Node::requestSwitchingMode()
 {
 	string message = nodeInformation.ip+","+nodeInformation.port;
-	//Messages msg(SWREQ, message);
 	string msg = populateSDFSFileList(SWREQ, message);
 	for(auto& element: this->membershipList) {
 		tuple<string,string,string> keyTuple = element.first;
-		//tuple<int, int, int> valueTuple = element.second;
 		cout << "[SWITCH] sent a request to " << get<0>(keyTuple) << "/" << get<1>(keyTuple) << endl;
 		udpServent->sendMessage(get<0>(keyTuple), get<1>(keyTuple), msg);
 	}
 	return 0;
 }
 
-int Node::SwitchMyMode() 
-{
-	// wait for a while
-	sleep(T_switch);
-	// empty all messages
-	udpServent->qMessages = queue<string>();
+int Node::SwitchMyMode() {
+	sleep(T_switch); // wait for a while
+	udpServent->qMessages = queue<string>(); // empty all messages
 	switch (this->runningMode) {
 		case GOSSIP: {
 			this->runningMode = ALL2ALL;
@@ -363,76 +264,30 @@ int Node::SwitchMyMode()
 		default:
 			break;
 	}
-	// finishing up
-	prepareToSwitch = false;
+	prepareToSwitch = false; // finishing up
 	return 0;
 }
- 
-int Node::listenToHeartbeats() 
-{
-	//look in queue for any strings --> if non empty, we have received a message and need to check the membership list
 
+int Node::listenToHeartbeats() {
 	// 1. deepcopy and handle queue
 	queue<string> qCopy(udpServent->qMessages);
 	udpServent->qMessages = queue<string>();
-
 	int size = qCopy.size();
 	//cout << "Got " << size << " messages in the queue" << endl;
 	//cout << "checking queue size " << nodeOwn->udpServent->qMessages.size() << endl;
-
-	// 2. merge membership list
 	for (int j = 0; j < size; j++) {
 		//cout << qCopy.front() << endl;
-		readMessage(qCopy.front());
-
-		// Volunteerily leave
-		if(this->activeRunning == false){
-			return 0;
-		}
-		// byteReceived += qCopy.front().size();
+		handleUdpMessage(qCopy.front());
+		if(this->activeRunning == false) return 0;
 		qCopy.pop();
 	}
-
 	return 0;
 }
 
-void Node::debugMembershipList()
-{
-	cout << "Membership list [" << this->membershipList.size() << "]:" << endl;
-	if (isLeader) {
-		cout << "[T]   IP/Port/JoinedTime:Heartbeat/LocalTimestamp/FailFlag" << endl;
-	} else {
-		cout << "[T] IP/Port/JoinedTime:Heartbeat/LocalTimestamp/FailFlag" << endl;
-	}
-	string message = "";
-	
-	for (auto& element: this->membershipList) {
-		tuple<string,string,string> keyTuple = element.first;
-		tuple<int, int, int> valueTuple = element.second;
-
-		if (nodeInformation.ip.compare(get<0>(keyTuple))==0) { // Myself
-			if (isLeader) {
-				message += "[L/M] ";
-			} else {
-				message += "[M] ";
-			}
-		} else if (leaderIP.compare(get<0>(keyTuple))==0) {
-			message += "[L] ";
-		} else {
-			if (isLeader) {
-				message += "      ";
-			} else {
-				message += "    ";
-			}
-		}
-
-		message += get<0>(keyTuple)+"/"+get<1>(keyTuple)+"/"+get<2>(keyTuple);
-		message += ": "+to_string(get<0>(valueTuple))+"/"+to_string(get<1>(valueTuple))+"/"+to_string(get<2>(valueTuple))+"\n";
-	}
-	cout << message.c_str() << endl;
-	this->logWriter->printTheLog(MEMBERS, message);
-}
-
+/*
+ * Take a hearbeat message, if the member doesn't exist add it, update hashring, and disseminate out memberList
+ * If it exists, check for failure, and if there is update fail flag, otherwise try ot update heartbeat
+*/
 void Node::processHeartbeat(string message) {
 	bool changed = false;
 	vector<string> incomingMembershipList = splitString(message, "\n");
@@ -446,10 +301,7 @@ void Node::processHeartbeat(string message) {
 		}
 		membershipListEntry.clear();
 		membershipListEntry = splitString(list_entry, ",");
-		if (membershipListEntry.size() != 5) {
-			// circumvent craching
-			continue;
-		}
+		if (membershipListEntry.size() != 5) continue;
 
 		int incomingHeartbeatCounter = stoi(membershipListEntry[3]);
 		int failFlag = stoi(membershipListEntry[4]);
@@ -459,17 +311,14 @@ void Node::processHeartbeat(string message) {
 			// Volunteerily leave if you are marked as failed
 			if(failFlag == 1){
 				this->activeRunning = false;
-
 				string message = "["+to_string(this->localTimestamp)+"] node "+this->nodeInformation.ip+"/"+this->nodeInformation.port+" is left";
 				cout << "[VOLUNTARY LEAVE]" << message.c_str() << endl;
 				this->logWriter->printTheLog(LEAVE, message);
 				return;
 			}
-			
-			// do not check itself heartbeat
 #ifdef LOG_VERBOSE
-			cout << "skip it" << endl;
-#endif		
+			cout << "do not check itself heartbeat" << endl;
+#endif
 			continue;
 		}
 
@@ -501,7 +350,6 @@ void Node::processHeartbeat(string message) {
 							if(incomingHeartbeatCounter > currentHeartbeatCounter){
 								get<0>(this->membershipList[mapKey]) = incomingHeartbeatCounter;
 								get<1>(this->membershipList[mapKey]) = localTimestamp;
-								// get<2>(this->membershipList[mapKey]) = failFlag;
 								string message = "["+to_string(this->localTimestamp)+"] node "+get<0>(mapKey)+"/"+get<1>(mapKey)+"/"+get<2>(mapKey)+" from "+to_string(currentHeartbeatCounter)+" to "+to_string(incomingHeartbeatCounter);
 #ifdef LOG_VERBOSE
 								cout << "[UPDATE]" << message.c_str() << endl;
@@ -526,43 +374,11 @@ void Node::processHeartbeat(string message) {
 						break;
 					}
 				}
-			} else {
-				// do nothing
-			}	
+			}
 		}
 	}
-
 	// If membership list changed in all-to-all, full membership list will be sent
-	if(changed && this->runningMode == ALL2ALL){
-		string mem_list_to_send = populateIntroducerMembershipMessage();
-		vector<tuple<string,string,string>> targetNodes = getRandomNodesToGossipTo();
-
-		for (uint i=0; i<targetNodes.size(); i++) {
-			Member destination(get<0>(targetNodes[i]), get<1>(targetNodes[i]));
-
-			string message = "["+to_string(this->localTimestamp)+"] node "+destination.ip+"/"+destination.port+"/"+get<2>(targetNodes[i]);
-#ifdef LOG_VERBOSE
-			cout << "[Gossip]" << message.c_str() << endl;
-#endif
-			this->logWriter->printTheLog(GOSSIPTO, message);
-
-			if (isLeader) {
-				//Messages msg(LEADERHEARTBEAT, mem_list_to_send);
-				if (isBlackout) {
-					string msg = populateSDFSFileList(LEADERPENDING, mem_list_to_send);
-					udpServent->sendMessage(destination.ip, destination.port, msg);
-				} else {
-					string msg = populateSDFSFileList(LEADERHEARTBEAT, mem_list_to_send);
-					udpServent->sendMessage(destination.ip, destination.port, msg);
-				}
-			} else {
-				//Messages msg(HEARTBEAT, mem_list_to_send);
-				string msg = populateSDFSFileList(HEARTBEAT, mem_list_to_send);
-				udpServent->sendMessage(destination.ip, destination.port, msg);
-			}
-
-		}		
-	}
+	if(changed && this->runningMode == ALL2ALL) heartbeatToNode();
 }
 
 void Node::setUpLeader(string message, bool pending)
@@ -594,25 +410,20 @@ void Node::setUpLeader(string message, bool pending)
 /**
  * given a string message which contains a membership list, we will take the string, split it by returns, and then split it by commas, to then compare the heartbeat counters
  * of each IP,PORT,timestamp tuple with the membership list of the receiving Node.
- * 
  * Found help on how to do string processing part of this at https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
  */
-void Node::readMessage(string message){
-	
-	// decapsulate with specific messages
-	//cout << "readMessage " << message << endl;
+void Node::handleUdpMessage(string message){
+	//cout << "handleUdpMessage " << message << endl;
 	string deMeg = decapsulateMessage(message);
 	bool pending = true;
-	//cout << "readMessage deMeg " << deMeg << endl;
-	
+	//cout << "handleUdpMessage deMeg " << deMeg << endl;
 	Messages msg(deMeg);
 	switch (msg.type) {
 		case LEADERHEARTBEAT: // Note: not for Gossip-style, only All-to-All
 			//cout << "LEADERHEARTBEAT: " << msg.payload << endl;
 			pending = false;
-		case LEADERPENDING:
-			setUpLeader(msg.payload, pending);
-		case HEARTBEAT: 
+		case LEADERPENDING: setUpLeader(msg.payload, pending);
+		case HEARTBEAT:
 		case JOINRESPONSE:{
 			processHeartbeat(msg.payload);
 			break;
@@ -624,13 +435,11 @@ void Node::readMessage(string message){
 				Member member(fields[0], fields[1]);
 				int checkPosition = hashingId(member, fields[2]);
 				if (checkHashNodeCollision(checkPosition)) {
-					//Messages response(JOINREJECT, "");
 					string response = populateSDFSFileList(JOINREJECT, "");
 					udpServent->sendMessage(fields[0], fields[1], response);
 				} else {
 					string introducerMembershipList;
 					introducerMembershipList = populateIntroducerMembershipMessage();
-					//Messages response(JOINRESPONSE, introducerMembershipList);
 					string response = populateSDFSFileList(JOINRESPONSE, introducerMembershipList);
 					udpServent->sendMessage(fields[0], fields[1], response);
 				}
@@ -646,7 +455,6 @@ void Node::readMessage(string message){
 				//Messages msgReply(SWRESP, messageReply);
 				string msgReply = populateSDFSFileList(SWRESP, messageReply);
 				udpServent->sendMessage(fields[0], fields[1], msgReply);
-
 				prepareToSwitch = true;
 			}
 			break;
@@ -669,29 +477,7 @@ void Node::readMessage(string message){
 		default:
 			break;
 	}
-	//debugMembershipList();	
-}
-
-vector<string> Node::splitString(string s, string delimiter){
-	vector<string> result;
-	size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-	string token;
-
-	while ((pos_end = s.find (delimiter, pos_start)) != string::npos) {
-		token = s.substr (pos_start, pos_end - pos_start);
-		pos_start = pos_end + delim_len;
-		result.push_back (token);
-	}
-
-	result.push_back (s.substr (pos_start));
-	return result;
-}
-
-int Node::hashingId(Member nodeMember, string joinTime)
-{
-	string toBeHashed = "NODE::" + nodeMember.ip + "::" + nodeMember.port + "::" + joinTime;
-	int ringPosition = hash<string>{}(toBeHashed) % HASHMODULO;
-	return ringPosition;
+	//debugMembershipList(this);
 }
 
 int Node::getPositionOnHashring(){
@@ -778,7 +564,7 @@ bool Node::findWillBeLeader()
 		//cout << "[ELECTION] My Possible Successor is " << ipAddresses[index] << endl;
 		possibleSuccessorIP = ipAddresses[index];
 	}
-	
+
 	return beLeader;
 }
 
@@ -792,38 +578,32 @@ void Node::restartElection() // haven't tested yet
 	leaderPort = "";
 }
 
-void Node::leaderCreateHashRing()
-{
-	// The leader or notes creates hashRing
+void Node::leaderCreateHashRing() {
 	hashRing->clear();
 	for (auto& element: this->membershipList) { // update hashRing
 		tuple<string, string, string> keyTuple = element.first;
 		Member member(get<0>(keyTuple), get<1>(keyTuple));
 		int pos = hashingId(member, get<2>(keyTuple));
-		//hashRing->addNode("NODE::"+get<0>(keyTuple), pos); // since we don't store file, remove NODE
 		hashRing->addNode(get<0>(keyTuple), pos);
 	}
-	//hashRing->debugHashRing();
 }
 
-void Node::proposeToBeLeader()
-{
-	// Start election
+void Node::proposeToBeLeader() {
 	Messages msg(ELECTION, to_string(hashRingPosition));
 	cout << "[ELECTION] Propose to be leader, send to " << possibleSuccessorIP << endl;
  	tcpServent->sendMessage(possibleSuccessorIP, TCPPORT, msg.toString());
 }
 
-void Node::processElection(Messages messages)
+void Node::electionMessageHandler(Messages messages)
 {
 	switch (messages.type) {
 		case ELECTION: { // check id
 			int currentId = stoi(messages.payload);
-			if (hashRingPosition > currentId) { 
+			if (hashRingPosition > currentId) {
 				//incoming is smaller, just forward
 				cout << "[ELECTION] Got Election, agree on voting: " << messages.payload << endl;
 				tcpServent->sendMessage(possibleSuccessorIP, TCPPORT, messages.toString());
-			} else if (hashRingPosition < currentId) { 
+			} else if (hashRingPosition < currentId) {
 				//incoming is biger, replace and send it
 				cout << "[ELECTION] Got Election, against this voting " << messages.payload;
 				cout << ", and using my id " << hashRingPosition << endl;
@@ -860,26 +640,19 @@ void Node::processElection(Messages messages)
 	}
 }
 
-void Node::processTcpMessages()
+void Node::tcpElectionProcessor()
 {
 	queue<string> qCopy(tcpServent->qMessages);
 	tcpServent->qMessages = queue<string>();
-
-	int size = qCopy.size();
 	//cout << "Got " << size << " TCP messages" << endl;
-
-	for (int j=0; j<size; j++) {
+	for (int j=0; j<qCopy.size(); j++) {
 		//cout << qCopy.front() << endl;
 		Messages msg(qCopy.front());
 		//cout << "Has " << msg.type << " with " << msg.payload << endl;
 		switch (msg.type) {
 			case ELECTION:
-			case ELECTIONACK: {
-				processElection(msg);
-				break;
-			}
-			default:
-				break;
+			case ELECTIONACK: electionMessageHandler(msg);
+			default: break;
 		}
 		qCopy.pop();
 	}
@@ -903,10 +676,8 @@ void Node::updateFileList(string sdfsfilename, int nodePosition)
 	}
 }
 
-//Can only be called when we are the leader node, since we are going to be calling REREPLICATE here, and checking the global file list. 
-//Called in ProcessRegMessages before we do anything else, since we want to check the global file list consistency before we process the other messages
-//In the Queue. 
 void Node::checkFileListConsistency(){
+	if (!isLeader) return;
 	if (membershipList.size() < 4) {
 		cout << "[ERROR] The number of members are too small, we need at least 4" << endl;
 		return;
@@ -926,12 +697,6 @@ void Node::checkFileListConsistency(){
 					string nodeInfo = hashRing->getValue(nodesToCheck[i]);
 					Messages outMsg(DNSGET, nodeInfo + "::" + to_string(nodesToCheck[i]) + "::" + element.first + "::");
 					tuple<int, int, int> request = pendingRequests[element.first];
-					if(get<0>(request) == 0 && get<1>(request) == 0 && get<2>(request) == 0){
-						pendingRequests[element.first] = tuple<int, int, int>(-1, -1, nodesToCheck[i]);
-						pendingRequestSent[element.first] = tuple<int, int, int>(true, true, true);
-						tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
-						break;
-					}
 					if(get<0>(request) != -1 || get<1>(request) != -1 || get<2>(request) != -1){
 						cout << "on put " << get<0>(request) << "/" << get<1>(request) << "/" << get<2>(request) << endl;
 						break;
@@ -947,31 +712,51 @@ void Node::checkFileListConsistency(){
 
 }
 
-bool Node::isInVector(vector<int> v, int i){
-	for(int element: v){
-		if(element == i){
-			return true;
-		}
-	}
-	return false;
+vector<tuple<string,string, string>> Node::getRandomNodesToGossipTo()
+{
+    vector<tuple<string, string, string>> availableNodesInfo;
+    vector<tuple<string, string, string>> selectedNodesInfo;
+    vector<int> indexList;
+    int availableNodes = 0;
+    for(auto& element: this->membershipList){
+        tuple<string, string, string> keyPair = element.first;
+        tuple<int, int, int> valueTuple = element.second;
+        //dont gossip to self or failed nodes
+        if(get<0>(keyPair).compare(this->nodeInformation.ip) && (get<2>(valueTuple) != 1)){
+            availableNodesInfo.push_back(keyPair);
+            indexList.push_back(availableNodes++);
+        }
+    }
+    switch (this->runningMode) {
+        case GOSSIP: {
+            srand(time(NULL));
+            // N_b is a predefined number
+            if (availableNodes <= N_b) return availableNodesInfo;
+            int nodeCount = 0;
+            while (nodeCount < N_b) {
+                int randomNum = rand() % availableNodes;
+                selectedNodesInfo.push_back(availableNodesInfo[indexList[randomNum]]);
+                indexList.erase(indexList.begin() + randomNum);
+                availableNodes--;
+                nodeCount++;
+            }
+            return selectedNodesInfo;
+        }
+        //ALL2ALL
+        default: {
+            return availableNodesInfo;
+        }
+    }
 }
 
-
-void Node::processRegMessages()
+void Node::handleTcpMessage()
 {
-	//Before we do anything here, we should have the leader check to see if the file list is consistent or not. 
-	//We do this by:
-	//1. Checking the files in the filelist, making sure each one has 4 entries. If not, then we need to rereplicate.
-	// We can initiate a PUT, put pending request, setting as -1, -1, and then last one as target node that we want to replicate to (new node to replace the one that failed)
-	if(isLeader){
-		checkFileListConsistency();
-	}
+	//Before we do anything here, we should have the leader check to see if the file list is consistent or not.
+	checkFileListConsistency();
 	queue<string> qCopy(tcpServent->regMessages);
 	tcpServent->regMessages = queue<string>();
-
 	int size = qCopy.size();
 	//cout << "Got " << size << " TCP messages" << endl;
-
 	for (int j=0; j<size; j++) {
 		// cout << qCopy.front() << endl;
 		vector<string> msgSplit = splitString(qCopy.front(), "::");
@@ -981,11 +766,8 @@ void Node::processRegMessages()
 		}
 		string payload = "";
 		for(uint k = 1; k < msgSplit.size(); k++){
-			if(k == msgSplit.size() - 1){
-				payload += msgSplit[k];
-			} else {
-				payload += msgSplit[k] + "::";
-			}
+			if(k == msgSplit.size() - 1) payload += msgSplit[k];
+			else payload += msgSplit[k] + "::";
 		}
 		MessageType msgType = static_cast<MessageType>(stoi(msgSplit[0]));
 		Messages msg(msgType, payload);
@@ -994,13 +776,9 @@ void Node::processRegMessages()
 			case PUTACK: {
 				vector<string> inMsg = splitString(msg.payload, "::");
 				if(inMsg.size() >= 4){
-					string inMsgIP = inMsg[0];
-					string sdfsfilename = inMsg[1];
-					string localfilename = inMsg[2];
-					string remoteLocalname = inMsg[3];
-
+					string inMsgIP = inMsg[0], sdfsfilename = inMsg[1];
+					string localfilename = inMsg[2], remoteLocalname = inMsg[3];
 					cout << "[PUTACK] " << "inMsgIP: " << inMsgIP << " sdfsfilename: " << sdfsfilename << " localfilename: " << localfilename << endl;
-					
 					localFilelist[sdfsfilename] = localfilename;
 					Messages outMsg(ACK, to_string(this->hashRingPosition)+"::"+sdfsfilename+"::"+remoteLocalname);
 					this->tcpServent->sendMessage(inMsgIP, TCPPORT, outMsg.toString());
@@ -1011,9 +789,7 @@ void Node::processRegMessages()
 				if (isLeader) {
 					vector<string> inMsg = splitString(msg.payload, "::");
 					if(inMsg.size() >= 2){
-						string inMsgIP = inMsg[0];
-						string sdfsfilename = inMsg[1];
-
+						string inMsgIP = inMsg[0], sdfsfilename = inMsg[1];
 						cout << "[DELETE] " << "inMsgIP: " << inMsgIP << " sdfsfilename: " << sdfsfilename << endl;
 						localFilelist.erase(sdfsfilename);
 						fileList.erase(sdfsfilename);
@@ -1024,16 +800,13 @@ void Node::processRegMessages()
 			}
 			case DNSGET: {
 				if(isLeader){
-					// Do replicating to the node
-					//isBlackout = true;
 					vector<string> inMsg = splitString(msg.payload, "::");
 					cout << "msg.payload " << msg.payload << endl;
 					if(inMsg.size() >= 4){
 						string inMsgIP = inMsg[0];
 						int nodePosition = stoi(inMsg[1]);
 						int selectedNodePosition = nodePosition;
-						string sdfsfilename = inMsg[2];
-						string localfilename = inMsg[3];
+						string sdfsfilename = inMsg[2], localfilename = inMsg[3];
 						cout << "[DNSGET] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename << ", localfilename: " << localfilename << endl;
 						vector<int> positions = fileList[sdfsfilename];
 						if (positions.size() == 0) {
@@ -1042,7 +815,6 @@ void Node::processRegMessages()
 							fileList.erase(sdfsfilename);
 							Messages outMsg(GETNULL, sdfsfilename+": the file is not available::");
 							this->tcpServent->sendMessage(inMsgIP, TCPPORT, outMsg.toString());
-							//isBlackout = false;
 							break;
 						}
 						cout << "[DNSGET] we have ";
@@ -1080,7 +852,6 @@ void Node::processRegMessages()
 
 						cout << "[DNS] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename;
 						cout << ", localfilename: " << localfilename << ", pos: " << nodePosition << endl;
-						//this->localFilelist[sdfsfilename] = localfilename;
 						// update fileList, client itself is one of the replicas
 						updateFileList(sdfsfilename, nodePosition);
 						hashRing->debugHashRing();
@@ -1089,7 +860,7 @@ void Node::processRegMessages()
 						int succ = hashRing->getSuccessor(closestNode);
 						if (hashRing->getValue(closestNode).compare(inMsgIP)==0) {
 							closestNode = hashRing->getRandomNode(tuple<int, int, int>(closestNode, pred, succ));
-							cout << "[DNS] we need one more node " << closestNode << endl; 
+							cout << "[DNS] we need one more node " << closestNode << endl;
 						}
 						if (hashRing->getValue(pred).compare(inMsgIP)==0) {
 							pred = hashRing->getRandomNode(tuple<int, int, int>(closestNode, pred, succ));
@@ -1119,13 +890,10 @@ void Node::processRegMessages()
 					// since we do not keep files in hashRing, the value itself is IPaddress, not NODE:IP_Address
 					string nodeIP = hashRing->getValue(nodePosition);
 					//cout << "nodeIP " << nodeIP << endl;
-
 					cout << "[DNSANS] " << "we will put sdfsfilename: " << inMsg[2] << " to nodeIP: " << nodeIP;
 					cout << " using localfilename: " << inMsg[1] << endl;
-
 					string sendMsg = nodeIP+"::"+inMsg[1]+"::"+inMsg[2]+"::";
 					this->tcpServent->pendSendMessages.push(sendMsg);
-					//this->tcpServent->sendFile(nodeIP, TCPPORT, inMsg[1], inMsg[2], "");
 				}
 				break;
 			}
@@ -1178,13 +946,12 @@ void Node::processRegMessages()
 					string sdfsfilename = inMsg[1];
 					string localfilename = inMsg[2];
 					localFilelist[sdfsfilename] = localfilename;
-
 					Messages outMsg(LEADERACK, this->nodeInformation.ip + "::" + to_string(this->hashRingPosition) + "::" + msg.payload);
 					cout << "[ACK] Done replicated sdfsfilename " << sdfsfilename;
 					cout << " on node " << nodePosition << ", and ACK back to the leader" << endl;
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
 				}
-				
+
 				break;
 			}
 			case LEADERACK:{
@@ -1200,7 +967,7 @@ void Node::processRegMessages()
 
 						cout << "[LEADERACK] Got ACK inMsgIP: " << inMsgIP << " sdfsfilename: " << sdfsfilename << " done on " << replicatedNodeIP << endl;
 						string closestNodeIP = "";
-						
+
 						// update fileList
 						updateFileList(sdfsfilename, inMsgnodePosition);
 						updateFileList(sdfsfilename, nodePosition);
@@ -1249,14 +1016,14 @@ void Node::processRegMessages()
 							pendingSenderRequests[sdfsfilename] = tuple<string, string, string>(get<0>(pendingSenderRequests[sdfsfilename]), inMsgIP, get<2>(pendingSenderRequests[sdfsfilename]));
 						}
 						if((get<2>(pendingRequests[sdfsfilename]) != -1) && (!get<2>(pendingRequestSent[sdfsfilename]))){
-							Messages outMsg(REREPLICATE, to_string(get<2>(pendingRequests[sdfsfilename])) + "::" + sdfsfilename);						
+							Messages outMsg(REREPLICATE, to_string(get<2>(pendingRequests[sdfsfilename])) + "::" + sdfsfilename);
 							// cout << "Sending out rereplicate to " << closestNodeIP << "with message " << outMsg.toString() << endl;
 							cout << "[LEADERACK] Ask node closest " << closestNodeIP << " to replicate on pos ";
 							cout << to_string(get<2>(pendingRequests[sdfsfilename])) << endl;
 							this->tcpServent->sendMessage(closestNodeIP, TCPPORT, outMsg.toString());
 							pendingRequestSent[sdfsfilename] = tuple<int, int, int>(get<0>(pendingRequestSent[sdfsfilename]), get<1>(pendingRequestSent[sdfsfilename]), true);
 							pendingSenderRequests[sdfsfilename] = tuple<string, string, string>(get<0>(pendingSenderRequests[sdfsfilename]), get<1>(pendingSenderRequests[sdfsfilename]), inMsgIP);
-						}					
+						}
 					}
 				}
 				break;
@@ -1268,48 +1035,10 @@ void Node::processRegMessages()
 	}
 }
 
-/**
- * Store the given filename in your sdfs filename, discard the original name, and 
- * give it a new name. The hashing will be done based on this sdfs filename. 
- * 
- * Can be called by any node, this one will be called by sender 
- * 
-*/
-// int Node::putFileSender(string filename, string sdfsfilename){
-// 	tcpServent->sendFile(leaderIP, leaderPort, filename);
-// 	return 0;
-
-// }
-
-// int Node::putFileMaster(string sdfsfilename){
-// 	return 0;
-// }
-
-// int Node::putFileReeiver(string sdfsfilename){
-// 	return 0;
-
-// }
-
 void Node::listLocalFiles(){
 	cout << "sdfsfilename ---> localfilename" << endl;
 	for (auto& element: localFilelist) {
 		cout << element.first << " ---> " << element.second << endl;
-	}
-}
-
-void Node::debugSDFSFileList() {
-	cout << "sdfsfilename ---> positions,..." << endl;
-	for (auto& element: fileList) {
-		cout << element.first << " ---> ";
-		for (uint i=0; i<element.second.size(); i++) {
-			cout << element.second[i];
-			if (i == element.second.size()-1) {
-				continue;
-			} else {
-				cout << ", ";
-			}
-		}
-		cout << endl;
 	}
 }
 
@@ -1324,22 +1053,25 @@ void Node::listSDFSFileList(string sdfsfilename) {
 		}
 	}
 	if (found) {
+		cout << "sdfsfilename " << sdfsfilename << " is stored at..." << endl;
 		if (foundPositions.size() > 0) {
-			cout << "sdfsfilename " << sdfsfilename << " is stored at..." << endl;
-			cout << "=========" << endl;
 			for (uint i=0; i<foundPositions.size(); i++) {
 				string storedIP = hashRing->getValue(foundPositions[i]);
 				cout << storedIP << " at " << foundPositions[i] << endl;
 			}
-		} else {
-			cout << "sdfsfilename " << sdfsfilename << " is stored at..." << endl;
-			cout << "=== Current list is empty ===" << endl;
-		}
+		} else { cout << "=== Current list is empty ===" << endl; }
 	} else {
 		cout << "sdfsfilename " << sdfsfilename << " is not existed" << endl;
 	}
 }
 
+/*
+ * Leader sends out fileList in the following string format:
+ * first 2 bytes are filename len, FILENAME msg type, filename itself,
+ * 2 bytes for the number of positions the file has, FILEPOSITION msg type,
+ * and a string of a commas seperated list of positions following that, ending in null byte.
+ * All files are encapsulated in this way and joined to make one string
+*/
 string Node::encapsulateFileList()
 {
 	string enMeg = "";
@@ -1391,6 +1123,7 @@ string Node::encapsulateFileList()
 	return enMeg;
 }
 
+//(len, PayloadType, message, \0) encoding where len is 2 bytes.
 string Node::encapsulateMessage(map<PayloadType,string> payloads)
 {
 	string enMeg = "";
@@ -1401,7 +1134,6 @@ string Node::encapsulateMessage(map<PayloadType,string> payloads)
 		//cout << "message " << message << endl;
 		//cout << "message.length " << message.length() << endl;
 		//cout << "type " << type << endl;
-
 		char *cstr = new char[message.length()+4];
 		size_t len = message.length()+3;
 		cstr[0] = len & 0xff;
@@ -1547,11 +1279,3 @@ string Node::populateSDFSFileList(MessageType type, string mem_list_to_send)
 	string enMeg = encapsulateMessage(payloads);
 	return enMeg;
 }
-
-void Node::findNodesWithFile(string sdfsfilename){
-	/*tuple<int, int, int> nodes = fileList[sdfsfilename];
-	cout << hashRing->getValue(get<0>(nodes)) << endl;
-	cout << hashRing->getValue(get<1>(nodes)) << endl;
-	cout << hashRing->getValue(get<2>(nodes)) << endl;*/
-}
-

@@ -8,7 +8,7 @@ FileObject::FileObject(string fileName){
 string FileObject::getChecksum(){
     ifstream fileStream(fileName);
     string fileContent((istreambuf_iterator<char>(fileStream)),
-                       (istreambuf_iterator<char>()));                       
+                       (istreambuf_iterator<char>()));
     size_t hashResult = hash<string>{}(fileContent);
     return to_string(hashResult);
 }

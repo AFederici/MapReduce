@@ -1,16 +1,8 @@
 #include "../inc/Logger.h"
 
-Logger::Logger()
-{
-	filename = LOGFILE;
-	//loggingFile.open(filename);
-}
+Logger::Logger() { filename = LOGFILE; }
 
-Logger::Logger(string fileName)
-{
-	filename = fileName;
-	//loggingFile.open(filename);
-}
+Logger::Logger(string fileName) { filename = fileName; }
 
 int Logger::writeToFile(string messages)
 {
@@ -72,12 +64,5 @@ int Logger::printTheLog(LogType type, string s)
 		default:
 			break;
 	}
-	//loggingFile << s;
 	return 0;
 }
-
-/*int Logger::closeFile()
-{
-	loggingFile.close();
-	return 0;
-}*/
