@@ -21,6 +21,12 @@ void *runTcpSender(void *tcpSocket)
 	TcpSocket* tcp;
 	tcp = (TcpSocket*) tcpSocket;
 	while (1) {
+		while (!tcp->mapleMessages.empty()) {
+			vector<string> msgSplit = splitString(tcp->mapleMessages.front(), "::");
+			Message msg(CHUNK, tcp->mapleMessages.front());
+			tcp->sendMessage(msgSplit[0], TCPPORT, msg);
+			tcp->pendSendMessages.pop();
+		}
 		while (!tcp->pendSendMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->pendSendMessages.front(), "::");
 			if (msgSplit.size() >= 4) {
@@ -28,7 +34,12 @@ void *runTcpSender(void *tcpSocket)
 				string sdfsfilename = msgSplit[2], remoteLocalfilename = msgSplit[3];
 				cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename;
 				cout << ", sdfsfilename " << sdfsfilename << ", remoteLocalfilename " << remoteLocalfilename << endl;
-				tcp->sendFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename);
+				if (msgSplit.size() == 5){
+					start = stoi(msgSplit[2]);
+					end = stoi(msgSplit[3]);
+					tcp->sendLines(nodeIP, TCPPORT, localfilename, start, end);
+				}
+				else tcp->sendFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename);
 			}
 			tcp->pendSendMessages.pop();
 		}
@@ -43,7 +54,7 @@ void *runSenderThread(void *node)
 	nodeOwn->activeRunning = true;
 
 	// heartbeat to introducer to join the system
-	Member introducer(getIP(INTRODUCER), PORT);
+	Member introducer(node->masterIP, PORT);
 	nodeOwn->joinSystem(introducer);
 
 	while (nodeOwn->activeRunning) {

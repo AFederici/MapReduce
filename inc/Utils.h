@@ -24,6 +24,8 @@ vector<string> splitString(string s, string delimiter);
 string getIP();
 string getIP(const char * host);
 int new_thread_id();
+template<typename T>
+vector<T> randItems(int numItems, vector<T> toChoose);
 bool isInVector(vector<int> v, int i);
 //adapted from https://stackoverflow.com/questions/23030267/custom-sorting-a-vector-of-tuples
 template<int M, template<typename> class F = std::less>

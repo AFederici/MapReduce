@@ -1,14 +1,18 @@
 #include "../inc/Node.h"
 
+//TODO, single file for each key, and ussing an append to each replica of it?
+//keep a local map, if you find a new key, just let the master know about it and hold off on results in buffer until it exists
 Node::Node(){
 	udpServent = new UdpSocket();
 	tcpServent = new TcpSocket();
 	hashRing = new HashRing();
+	mapleRing = new HashRing();
 	localTimestamp = 0;
 	heartbeatCounter = 0;
 	runningMode = ALL2ALL;
 	activeRunning = false;
 	prepareToSwitch = false;
+	masterIP = getIP(INTRODUCER);
 	logWriter = new Logger(LOGGING_FILE_NAME);
 	leaderPosition = -1;
 	proposedTime = 0;
@@ -141,6 +145,41 @@ int Node::failureDetection(){
 						}
 						fileList[element.first] = newEntry;
 					}
+
+					//////////////////////////////////////////////////////
+					//1) remove from HashRing
+					//2) if processing, reassign
+					//2a) if no extra nodes, assign to successor, else add new node to ring
+					//3) if a sender, reassign replica holders as new senders for each thing sent
+					vector<tuple<string,string>> aliveNodes;
+					for (auto &e : membershipList) aliveNodes.push_back(e.first);
+					vector<tuple<string,string,string>> mapleNodes;
+					int nextId;
+					if ((mapleRing->nodePositions.size()-1) == hashRing->nodePositions.size()){
+						nextId = mapleRing->getSuccessor(deletedNodePostion);
+					} else {
+						while (1){
+							mapleNodes = randItems(1, aliveNodes);
+							if (mapleRing->getValue(mapleNodes[0]).compare("No node found") != 0) continue;
+							break;
+						}
+						Member m(get<0>(mapleNodes[0]), get<1>(mapleNodes[0]));
+						mapleRing->addNode(get<0>(mapleNodes[0]), hashingId(m, get<2>(mapleNodes[0])));
+						nextId = hashingId(m, get<2>(mapleNodes[0]))
+					}
+					mapleRing->removeNode(deletedNodePostion);
+
+					auto vecCopy(mapleProcessing[get<0>(keyTuple)]);
+					mapleProcessing[nextId] = vecCopy;
+					mapleProcessing.erase(get<0>(keyTuple));
+
+					for (auto &e : mapleSending[get<0>(keyTuple)]){
+						vector<string> temp = randItems(1, fileList[e.first]);
+						mapleSend[temp[0]] = make_tuple(e.first, e.second);
+						string mapleS = temp[0] + "::" + e.first + "::" + e.second + "::" + to_string(stoi(e.second) + T_maples) + "::";
+						mapleMessages.push(mapleS);
+					}
+
 
 					// chech if the failure is the sender in pending requests
 					for (auto& senders: pendingSenderRequests) {
@@ -729,18 +768,7 @@ vector<tuple<string,string, string>> Node::getRandomNodesToGossipTo()
     }
     switch (this->runningMode) {
         case GOSSIP: {
-            srand(time(NULL));
-            // N_b is a predefined number
-            if (availableNodes <= N_b) return availableNodesInfo;
-            int nodeCount = 0;
-            while (nodeCount < N_b) {
-                int randomNum = rand() % availableNodes;
-                selectedNodesInfo.push_back(availableNodesInfo[indexList[randomNum]]);
-                indexList.erase(indexList.begin() + randomNum);
-                availableNodes--;
-                nodeCount++;
-            }
-            return selectedNodesInfo;
+            return randItems(N_b, availableNodesInfo);
         }
         //ALL2ALL
         default: {
@@ -773,6 +801,100 @@ void Node::handleTcpMessage()
 		Messages msg(msgType, payload);
 		// cout << "Has " << msg.type << " with " << msg.payload << endl;
 		switch (msg.type) {
+			case JUICESTART: {
+				if (mapleAssignments.size()) {tcpServent->regMessages.push(msg); break;}
+				//TODO
+			}
+			case MAPLESTART: {
+				//leader only function
+				//currently running something, dont start a new phase
+				if (mapleAssignments.size()) {tcpServent->regMessages.push(msg); break;}
+				if (inMsg.size() >= 4){
+					string maple_exe = inMsg[0], num_maples = inMsg[1], sdfs_pre = inMsg[2], sdfs_dir = inMsg[3];
+					int workers = stoi(num_maples);
+					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
+					int total_lines = 0;
+					vector<tuple<string,int>> directory;
+					for (auto &e: fileSizes){
+						if (strncmp(e.first.c_str(), sdfs_dir.c_str(), sdfs_dir.size()) == 0){
+							directory.push_back(make_tuple(e.first, get<1>(e.second)));
+							total_lines += get<1>(e.second);
+						}
+					}
+					vector<tuple<string,string>> aliveNodes;
+					for (auto &e : membershipList) aliveNodes.push_back(e.first);
+					vector<string> mapleNodes = randItems(workers, aliveNodes);
+					for (auto &e : mapleNodes) {
+						Member m(get<0>(e), get<1>(e));
+						mapleRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
+					}
+					int start = 0, id = 0;
+					string s;
+					for (auto &e: directory){
+						start = 0;
+						while (start < e.second){
+							s = e.first + "::" + to_string(start);
+							id = mapleRing->locateClosestNode(s);
+							vector<string> temp = randItems(1, fileList[e.first]);
+							mapleProccessing[mapleRing->getValue(id)].push_back(make_tuple(e.first, to_string(start), temp[0]));
+							mapleSending[temp[0]].push_back(make_tuple(e.first, to_string(start)));
+							string maplemsg = mapleRing->getValue(id) + "::" + s;
+							this->tcpServent->mapleMessages.push(maplemsg);
+							start += T_maples;
+						}
+					}
+				}
+				break;
+			}
+
+			case CHUNK: {
+				vector<string> inMsg = splitString(msg.payload, "::");
+				cout << "[CHUNK] " << "we will put sdfsfilename: " << msg.payload[1] << " from chunk: " << msg.payload[2];
+				cout << " to node " << msg.payload[0] << endl;
+				string sendMsg = msg.payload + "::" + to_string(stoi(msg.payload[2]) + T_maples) + "::";
+				this->tcpServent->pendSendMessages.push(sendMsg);
+				break;
+			}
+
+			case CHUNKACK: {
+				vector<string> inMsg = splitString(msg.payload, "::");
+				if (!isLeader) {
+					//forward to know that the file was put okay
+					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
+					//TODO start PROCESSING !!!!! its in inMsg[3] for the file to process
+					//if processing success, send out TCP MAPLEACK
+					break;
+				}
+				vector<tuple<string,string>> temp;
+				for (auto &e : mapleSending[inMsg[0]]){
+					if (e.first.compare(inMsg[1]) == 0){
+						if (e.second.compare(inMsg[2]) == 0){
+							continue;
+						}
+					}
+					temp.push_back(e);
+				}
+				if (temp.size()) mapleSending[inMsg[0]] = temp;
+				else mapleSending.erase(inMsg[0]);
+				break;
+			}
+
+			case MAPLEACK: {
+				vector<string> inMsg = splitString(msg.payload, "::");
+				vector<tuple<string,string,string>> temp;
+				for (auto &e : mapleProccessing[inMsg[0]]){
+					if (e.first.compare(inMsg[1]) == 0){
+						if (e.second.compare(inMsg[2]) == 0){
+							continue;
+						}
+					}
+					temp.push_back(e);
+				}
+				if (temp.size()) mapleSending[inMsg[0]] = temp;
+				else mapleSending.erase(inMsg[0]);
+				break;
+			}
+
 			case PUTACK: {
 				vector<string> inMsg = splitString(msg.payload, "::");
 				if(inMsg.size() >= 4){
@@ -793,6 +915,7 @@ void Node::handleTcpMessage()
 						cout << "[DELETE] " << "inMsgIP: " << inMsgIP << " sdfsfilename: " << sdfsfilename << endl;
 						localFilelist.erase(sdfsfilename);
 						fileList.erase(sdfsfilename);
+						fileSizes.erase(sdfsfilename);
 						// This is TCP, so we don't need to ACK
 					}
 				}
@@ -813,6 +936,7 @@ void Node::handleTcpMessage()
 							// the file is not available
 							cout << "[DNSGET] sdfsfilename " << sdfsfilename << " is not available" << endl;
 							fileList.erase(sdfsfilename);
+							fileSizes.erase(sdfsfilename);
 							Messages outMsg(GETNULL, sdfsfilename+": the file is not available::");
 							this->tcpServent->sendMessage(inMsgIP, TCPPORT, outMsg.toString());
 							break;
@@ -844,16 +968,18 @@ void Node::handleTcpMessage()
 					// Check hashring, get positions and send out DNS ANS
 					isBlackout = true;
 					vector<string> inMsg = splitString(msg.payload, "::");
-					if(inMsg.size() >= 4){
+					if(inMsg.size() >= 6){
 						string inMsgIP = inMsg[0];
 						int nodePosition = stoi(inMsg[1]);
 						string sdfsfilename = inMsg[2];
 						string localfilename = inMsg[3];
-
+						long int size = stol(inMsg[4]);
+						int lines = stoi(inMsg[5]);
 						cout << "[DNS] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename;
 						cout << ", localfilename: " << localfilename << ", pos: " << nodePosition << endl;
 						// update fileList, client itself is one of the replicas
 						updateFileList(sdfsfilename, nodePosition);
+						fileSizes[sdfsfilename] = make_tuple(size, lines);
 						hashRing->debugHashRing();
 						int closestNode = hashRing->locateClosestNode(sdfsfilename);
 						int pred = hashRing->getPredecessor(closestNode);
@@ -910,7 +1036,6 @@ void Node::handleTcpMessage()
 					cout << "[REREPLICATEGET] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
 					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::"+remoteLocalfilename;
 					this->tcpServent->pendSendMessages.push(sendMsg);
-					//this->tcpServent->sendFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename);
 				}
 				break;
 			}
@@ -1088,31 +1213,49 @@ string Node::encapsulateFileList()
 			}
 			//cout << "sdfsfilename " << sdfsfilename << endl;
 			//cout << "positions " << positions << endl;
-			char *cstr = new char[sdfsfilename.length()+positions.length()+7];
+			string size = to_string(get<0>(fileSizes[sdfsfilename])) + "," + to_string(get<1>(fileSizes[sdfsfilename]));
+			char *cstr = new char[sdfsfilename.length()+positions.length()+size.length()+3+3+3+1];
 			size_t len = sdfsfilename.length()+3;
-			cstr[0] = len & 0xff;
-			cstr[1] = (len >> 8) & 0xff;
-			if (cstr[1] == 0) { // avoid null
-				cstr[1] = 0xff;
+			int index = 0;
+			cstr[index++] = len & 0xff;
+			cstr[index] = (len >> 8) & 0xff;
+			if (cstr[index] == 0) { // avoid null
+				cstr[index] = 0xff;
 			}
+			index++;
 			//printf("cstr[0] %x, cstr[1] %x\n", cstr[0], cstr[1]);
-			cstr[2] = FILENAME;
+			cstr[index++] = FILENAME;
 			for (uint i=0; i<sdfsfilename.length(); i++) {
-				cstr[i+3] = sdfsfilename.c_str()[i];
+				cstr[index+i] = sdfsfilename.c_str()[i];
 			}
+			index += sdfsfilename.length();
 			size_t len2 = positions.length()+3;
-			cstr[sdfsfilename.length()+3] = len2 & 0xff;
-			cstr[sdfsfilename.length()+4] = (len2 >> 8) & 0xff;
-			if (cstr[sdfsfilename.length()+4] == 0) { // avoid null
-				cstr[sdfsfilename.length()+4] = 0xff;
+			cstr[index++] = len2 & 0xff;
+			cstr[index] = (len2 >> 8) & 0xff;
+			if (cstr[index] == 0) { // avoid null
+				cstr[index] = 0xff;
 			}
+			index++;
 			//printf("cstr[3] %x, cstr[4] %x\n", cstr[0], cstr[1]);
-			cstr[sdfsfilename.length()+5] = FILEPOSITIONS;
+			cstr[index++] = FILEPOSITIONS;
 			//printf("cstr[%lu] %d\n", sdfsfilename.length()+2, cstr[sdfsfilename.length()+2]);
 			for (uint i=0; i<positions.length(); i++) {
-				cstr[sdfsfilename.length()+6+i] = positions.c_str()[i];
+				cstr[index+i] = positions.c_str()[i];
 			}
-			cstr[sdfsfilename.length()+positions.length()+6] = '\0';
+			index += positions.length();
+			size_t len3 = size.length()+3;
+			cstr[index++] = len3 & 0xff;
+			cstr[index] = (len3 >> 8) & 0xff;
+			if (cstr[index] == 0) { // avoid null
+				cstr[index] = 0xff;
+			}
+			index++;
+			cstr[index++] = FILESIZE;
+			for (uint i=0; i<size.length(); i++) {
+				cstr[index+i] = size.c_str()[i];
+			}
+			index += size.length();
+			cstr[index] = '\0';
 			//printf("cstrFile %s\n", cstr);
 			string enMegFile(cstr);
 			//cout << "enMegFile " << enMegFile << endl;
@@ -1162,6 +1305,7 @@ void Node::decapsulateFileList(string payload)
 	int size = payload.length();
 	uint pos = 0;
 	fileList.clear();
+	fileSizes.clear();
 	string lastFilename = "";
 	while (size > 0) {
 		size_t length;
@@ -1196,6 +1340,11 @@ void Node::decapsulateFileList(string payload)
 					}
 				}
 				fileList[lastFilename] = positions;
+				break;
+			}
+			case FILESIZE: {
+				vector<string> temp = splitString(deMegPart, ",");
+				fileSizes[lastFilename] = make_tuple(stol(temp[0]),stoi(temp[1]));
 				break;
 			}
 			default:

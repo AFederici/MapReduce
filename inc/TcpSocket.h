@@ -50,9 +50,11 @@ public:
 	queue<string> qMessages; //election messages added to this queue
 	queue<string> regMessages;//other messages added here
 	queue<string> pendSendMessages;//keeps messages for the tcp client to send
+	queue<string> mapleMessages; //keeps track of sending
 
 	void bindServer(string port);
 	void sendFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename);
+	void sendLines(string ip, string port, string localfilename, int start, int end);
 	void sendMessage(string ip, string port, string message);
 	int messageHandler(int sockfd, string payloadMessage, string returnID);
 	int createConnection(string ip, string port);

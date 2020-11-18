@@ -46,3 +46,22 @@ bool isInVector(vector<int> v, int i){
 	}
 	return false;
 }
+
+template<typename T>
+vector<T> randItems(int numItems, vector<T> toChoose){
+	srand(time(NULL));
+	vector<int> availableNodesInfo(toChoose);
+	vector<int> indexList;
+	int availableNodes = availableNodesInfo.size();
+	for (int i = 0; i < availableNodes; i++) indexList.push_back(i);
+	if (availableNodes <= toChoose) return availableNodesInfo;
+	int nodeCount = 0;
+	while (nodeCount < N_b) {
+		int randomNum = rand() % availableNodes;
+		selectedNodesInfo.push_back(availableNodesInfo[indexList[randomNum]]);
+		indexList.erase(indexList.begin() + randomNum);
+		availableNodes--;
+		nodeCount++;
+	}
+	return availableNodesInfo;
+}

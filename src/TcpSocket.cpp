@@ -129,6 +129,32 @@ void TcpSocket::sendFile(string ip, string port,
 	close(sockfd);
 }
 
+void TcpSocket::sendLines(string ip, string port, string localfilename, int start, int end)
+{
+	int sockfd = 0, lineCounter = -1;
+	if ((sockfd = createConnection(ip, port)) == -1) return;
+	// send lines and filename first
+	string toSend = localfilename + "," + to_string(start) + "," + localfilename + to_string(start) + "temp";
+	Messages msg(PUT, toSend);
+	string payload = msg.toString();
+	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
+		perror("send");
+	}
+	sleep(1);
+	ifstream file(localfilename.c_str());
+    string str;
+    while (std::getline(file, str))
+    {
+		lineCounter++;
+        if (lineCounter < start) continue;
+		if (lineCounter >= end) break;
+		if (send(sockfd, str.c_str(), strlen(str.c_str()), 0) == -1) {
+			perror("send");
+		}
+    }
+	close(sockfd);
+}
+
 void TcpSocket::sendMessage(string ip, string port, string message)
 {
 	int sockfd;
@@ -186,22 +212,27 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			string sdfsfilename = "", incomingChecksum = "", remoteLocalname = "", overwriteFilename = "";
 			// format: size,checksum,sdfsfilename
 			vector<string> fields = splitString(msg.payload, ",");
+			int start = -1;
 			if (fields.size() >= 5) {
 				filesize = stoi(fields[0]);
 				incomingChecksum = fields[1];
 				sdfsfilename = fields[2];
 				remoteLocalname = fields[3];
 				overwriteFilename = fields[4];
+				cout << "file is " << sdfsfilename << " with size " << filesize << " and checksum " << incomingChecksum << endl;
+				time_t fileTimestamp;
+				time(&fileTimestamp);
+				string localfilename = sdfsfilename+"_"+to_string(fileTimestamp);
+				if (overwriteFilename.compare("") != 0) {
+					localfilename = overwriteFilename;
+					cout << "it's GET with filename " << overwriteFilename << endl;
+				}
+				cout << "backup filename " << localfilename << endl;
+			} else {
+				localfilename = fields[2];
+				sdfsfilename = fields[0];
+				start = fields[1];
 			}
-			cout << "file is " << sdfsfilename << " with size " << filesize << " and checksum " << incomingChecksum << endl;
-			time_t fileTimestamp;
-			time(&fileTimestamp);
-			string localfilename = sdfsfilename+"_"+to_string(fileTimestamp);
-			if (overwriteFilename.compare("") != 0) {
-				localfilename = overwriteFilename;
-				cout << "it's GET with filename " << overwriteFilename << endl;
-			}
-			cout << "backup filename " << localfilename << endl;
 			fp = fopen(localfilename.c_str(), "wb");
 			if (fp == NULL) {
 				cout << "file error" << endl;
@@ -222,14 +253,16 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			fclose(fp);
 
 			FileObject f(localfilename);
-			if(incomingChecksum.compare(f.checksum) != 0){
+			if(incomingChecksum.compare(f.checksum) != 0 && incomingChecksum.compare("") != 0){
 				cout << "[ERROR] FILE CORRUPTED" << endl;
 				// TODO: Handel file corruption here
 			} else {
-				Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
+				if (start != -1){
+					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + start + "::" + localfilename);
+				}
+				else Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
 				regMessages.push(putack.toString());
 			}
-
 			break;
 		}
 		case DNSANS:

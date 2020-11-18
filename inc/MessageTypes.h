@@ -22,14 +22,22 @@ enum MessageType {
 	DELETE, //leader handles deletion and disseminates info
 	GETNULL, //sent if user tries to get a file from leader and it has 0 copies in the system
 	REREPLICATE,
-	REREPLICATEGET
+	REREPLICATEGET,
+	MAPLESTART, //send to master to initiate maple phase
+	JUICESTART, //send to master to initiate juice phase
+	MAPLEACK,
+	CHUNK, //send to nodes so they have information about what kind of get request to send
+	APPEND, //process get request and send an append request, need to add this to all replicas too. Check into blackout stuff
+	APPENDACK,
+	CHUNKACK, //after append ack received, send this back to master to know when things are Done
 };
 
 enum PayloadType {
 	REGULAR=97, //start of actual message (membershipList)
 	FILEPAIR, //start of filelist
 	FILENAME, //start of filename
-	FILEPOSITIONS //start of comma seperated file positions string
+	FILEPOSITIONS, //start of comma seperated file positions string
+	FILESIZE
 };
 
 enum LogType {

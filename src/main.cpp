@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 	node->localFilelist.clear(); // for testing
+	node->fileSize.clear();
 	/*node->localFilelist["sdfsfilename1"] = "localfilename1";
 	node->localFilelist["sdfsfilename2"] = "localfilename2";*/
 
@@ -90,13 +91,22 @@ int main(int argc, char *argv[])
 			if (!node->isBlackout) {
 				string localfilename = cmdLineInput[1];
 				string sdfsfilename = cmdLineInput[2];
-				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename);
-				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
-				if (access(localfilename.c_str(), F_OK) != -1) {
-					node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
-				} else {
-					cout << "[PUT] The file " << localfilename << " is not existed" << endl;
+				fp = fopen(localfilename.c_str(), "rb");
+				if (fp == NULL) {
+					cout << "[PUT] The file " << localfilename << " does not exist" << endl;
+					continue;
 				}
+				fseek(fp, 0, SEEK_END);
+				long int size = ftell(fp);
+				fseek(fp, 0, SEEK_SET);
+				fclose(fp);
+				int number_of_lines = 0;
+				string line;
+				ifstream myfile(localfilename.c_str());
+				while (getline(myfile, line)) ++number_of_lines;
+				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines));
+				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
+				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
 			}
@@ -120,7 +130,6 @@ int main(int argc, char *argv[])
 					continue;
 				}
 			}
-
 			Messages outMsg(DNSGET, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename);
 			cout << "[GET] Got sdfsfilename: " << sdfsfilename << " with localfilename: " << localfilename << endl;
 			node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
@@ -152,6 +161,45 @@ int main(int argc, char *argv[])
 			node->listLocalFiles();
 		} else if (cmd == "lsall"){
 			debugSDFSFileList(node);
+		} else if (cmd == "maple" && joined){
+			if(cmdLineInput.size() < 5){
+				cout << "USAGE: maple maple_exe num_maples sdfs_intermediate_dir sdfs_src_dir" << endl;
+				continue;
+			}
+			if (FILE *file = fopen(cmdLineInput[1].c_str(), "r")) {
+				fclose(file);
+			} else {
+				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally" << endl;
+				continue;
+			}
+			if (!node->isBlackout){
+				string msg = cmdLineInput[1] + "," + cmdLineInput[2] + "," + cmdLineInput[3] + "," + cmdLineInput[4] + "\n";
+				Messages outMsg(MAPLESTART, msg);
+				cout << "[MAPLE] forwarding request to " << node->leaderIP << endl;
+				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
+			} else {
+				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
+			}
+		} else if (cmd == "juice" && joined){
+			if(cmdLineInput.size() < 6){
+				cout << "USAGE: juice juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1}" << endl;
+				continue;
+			}
+			if (FILE *file = fopen(cmdLineInput[1].c_str(), "r")) {
+				fclose(file);
+			} else {
+				cout << "[JUICE] " << cmdLineInput[1] << " does not exist locally" << endl;
+				continue;
+			}
+			if (!node->isBlackout){
+				//TODO
+			} else {
+				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
+			}
+		} else if (cmd == "ip"){
+			cout << getIP() << endl;
+		} else if (cmd == "leader"){
+			cout << "Leader IP " << node->leaderIP << endl;
 		} else {
 			cout << "[join] join to a group via fixed introducer" << endl;
 			cout << "[leave] leave the group" << endl;
