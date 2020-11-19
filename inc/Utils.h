@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
 #include <sys/wait.h>
+#include <arpa/inet.h>
 #ifdef __linux__
 #include <bits/stdc++.h>
 #endif
@@ -21,6 +21,9 @@ using std::vector;
 using std::get;
 using std::tuple_element;
 using std::tuple;
+
+static pthread_mutex_t thread_counter_lock = PTHREAD_MUTEX_INITIALIZER;
+static int thread_counter = 0;
 
 vector<string> splitString(string s, string delimiter);
 string getIP();
