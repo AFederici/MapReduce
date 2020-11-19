@@ -55,7 +55,9 @@ void handlePipe(int file, string prefix) {
     FILE *stream = fdopen(file, "r"); FILE *tmp;
     char str[bufSize];
 	const char * delim = ",";
+	int lines = 0;
     while ((fgets(str, bufSize, stream)) != NULL){
+		lines++;
 		std::string key(strtok(str, delim));
     	std::string val(strtok(NULL, delim));
 		string keyFile = "tmp-" + prefix + "-" + key;
@@ -63,6 +65,7 @@ void handlePipe(int file, string prefix) {
 		tmp = fopen(keyFile.c_str(), "ab");
 		fwrite(write.c_str(),sizeof(char),write.size(),tmp);
 		fclose(tmp);
+		cout << "[PIPE] " << key << " to " << keyFile << endl;
 	}
     fclose (stream);
   }
