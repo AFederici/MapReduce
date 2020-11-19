@@ -829,7 +829,7 @@ void Node::handleTcpMessage()
 					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
 					int total_lines = 0;
 					vector<tuple<string,int>> directory;
-					cout << "[DIRECTORY]" << endl;
+					cout << "[DIRECTORY] " << sdfs_dir << endl;
 					for (auto &e: fileSizes){
 						cout << e.first << " | " << to_string(get<1>(e.second));
 						if (strncmp(e.first.c_str(), sdfs_dir.c_str(), sdfs_dir.size()) == 0){

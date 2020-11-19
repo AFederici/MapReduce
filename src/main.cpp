@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 				continue;
 			}
 			if (!node->isBlackout){
-				string msg = cmdLineInput[1] + "::" + cmdLineInput[2] + "::" + cmdLineInput[3] + "::" + cmdLineInput[4] + "\n";
+				string msg = cmdLineInput[1] + "::" + cmdLineInput[2] + "::" + cmdLineInput[3] + "::" + cmdLineInput[4];
 				Messages outMsg(MAPLESTART, msg);
 				cout << "[MAPLE] forwarding request to " << node->leaderIP << endl;
 				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
