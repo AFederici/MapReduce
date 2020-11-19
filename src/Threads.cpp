@@ -38,6 +38,7 @@ void *runTcpSender(void *tcpSocket)
 					//IP, exec, file, start, prefix, end
 					int start = stoi(msgSplit[3]);
 					int end = stoi(msgSplit[5]);
+					cout << "[CHUNK] sending : " << sdfsfilename << " from " << msgSplit[3] << " to " << msgSplit[5] << endl;
 					tcp->sendLines(nodeIP, TCPPORT, localfilename, sdfsfilename, msgSplit[4], start, end); //exec, file, start, end
 				}
 				else tcp->sendFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename, overwrite);

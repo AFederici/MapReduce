@@ -882,6 +882,7 @@ void Node::handleTcpMessage()
 			}
 
 			case CHUNKACK: {
+				cout << "[CHUNKACK] receiving the put worked!" << endl
 				//IP, exec, start, temp, actual file, prefix
 				if (!isLeader) {
 					//forward to know that the file was put okay
@@ -924,6 +925,7 @@ void Node::handleTcpMessage()
 					tcpServent->sendMessage(leaderIP, TCPPORT, ackMsg.toString());
 					break;
 				}
+				cout << "[CHUNKACK] leader confirming the chunk was received" << endl;
 				vector<tuple<string,string>> temp;
 				for (auto &e : mapleSending[inMsg[0]]){
 					if (get<0>(e).compare(inMsg[4]) == 0){

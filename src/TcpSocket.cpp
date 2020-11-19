@@ -149,6 +149,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
     {
 		lineCounter++;
         if (lineCounter < start) continue;
+		else if (lineCounter == start) cout << "[CHUNK] starting to send at line " << lineCounter << endl;
 		if (lineCounter >= end) break;
 		if (send(sockfd, str.c_str(), strlen(str.c_str()), 0) == -1) {
 			perror("send");
