@@ -882,7 +882,7 @@ void Node::handleTcpMessage()
 			}
 
 			case CHUNKACK: {
-				cout << "[CHUNKACK] receiving the put worked!" << endl
+				cout << "[CHUNKACK] receiving the put worked!" << endl;
 				//IP, exec, start, temp, actual file, prefix
 				if (!isLeader) {
 					//forward to know that the file was put okay
