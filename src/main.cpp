@@ -166,10 +166,11 @@ int main(int argc, char *argv[])
 				cout << "USAGE: maple maple_exe num_maples sdfs_intermediate_dir sdfs_src_dir" << endl;
 				continue;
 			}
-			string testCommand = "./" + cmdLineInput[1] + " > /dev/null 2>&1";
-			if (system(testCommand.c_str()) == -1) {
-				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally, " << testCommand << " failed." << endl;
- 			   	continue;
+			if (FILE *file = fopen(cmdLineInput[1].c_str(), "r")) {
+				fclose(file);
+			} else {
+				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally" << endl;
+				continue;
 			}
 			if (!node->isBlackout){
 				string msg = cmdLineInput[1] + "," + cmdLineInput[2] + "," + cmdLineInput[3] + "," + cmdLineInput[4] + "\n";
