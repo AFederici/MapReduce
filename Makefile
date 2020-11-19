@@ -7,7 +7,7 @@ SRC_FILES := src/Node.cpp src/Messages.cpp src/Member.cpp src/UdpSocket.cpp src/
 SRC_FILES2 := mappers/wc.cpp src/Utils.cpp
 .PHONY: clean
 
-all: clean app
+all: clean app map
 
 map:
 	$(CXX) -o $(APP2) $(SRC_FILES2) $(CFLAGS) $(LIBS)
