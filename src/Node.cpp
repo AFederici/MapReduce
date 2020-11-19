@@ -873,8 +873,7 @@ void Node::handleTcpMessage()
 			}
 
 			case CHUNK: {
-				cout << "[CHUNK] " << "we will put sdfsfilename: " << inMsg[2] << " from chunk: " << inMsg[3];
-				cout << " to node " << inMsg[0] << endl;
+				cout << "[CHUNK] " << "we will put sdfsfilename: " << inMsg[2] << " from chunk: " << inMsg[3] << " to node " << inMsg[0] << endl;
 				int end = stoi(inMsg[3]) + T_maples;
 				string sendMsg = msg.payload + "::" + to_string(end);
 				this->tcpServent->pendSendMessages.push(sendMsg);
