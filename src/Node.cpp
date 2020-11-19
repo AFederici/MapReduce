@@ -829,11 +829,15 @@ void Node::handleTcpMessage()
 					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
 					int total_lines = 0;
 					vector<tuple<string,int>> directory;
+					cout << "[DIRECTORY]" << endl;
 					for (auto &e: fileSizes){
+						cout << e.first << " | " << to_string(get<1>(e.second));
 						if (strncmp(e.first.c_str(), sdfs_dir.c_str(), sdfs_dir.size()) == 0){
+							cout << " was a match ";
 							directory.push_back(make_tuple(e.first, get<1>(e.second)));
 							total_lines += get<1>(e.second);
 						}
+						cout << endl;
 					}
 					cout << "[MAPLE] need to process " << to_string(total_lines) << endl;
 					vector<tuple<string,string,string>> aliveNodes;
