@@ -139,6 +139,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 	vector<string> unDirectory = splitString(readfile, "-");
 	string toSend = execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
 	Messages msg(PUT, toSend);
+	cout << "[CHUNK] " << msg.toString() << endl;
 	string payload = msg.toString();
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");
@@ -150,8 +151,8 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
     {
 		lineCounter++;
         if (lineCounter < start) continue;
-		else if (lineCounter == start) cout << "[CHUNK] starting to send at line " << lineCounter << endl;
-		if (lineCounter >= end) break;
+		else if (lineCounter == start) cout << "[CHUNK] starting to send at line " << to_string(lineCounter) << endl;
+		if (lineCounter >= end) { cout << "Counter at " << to_string(lineCounter) << " end: " << to_string(end) << endl; break; }
 		if (send(sockfd, str.c_str(), strlen(str.c_str()), 0) == -1) {
 			perror("send");
 		}
