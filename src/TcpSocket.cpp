@@ -1,10 +1,12 @@
 #include "../inc/TcpSocket.h"
-#include "../inc/UdpSocket.h"
-#include "../inc/Messages.h"
-#include "../inc/FileObject.h"
 
-// just loop through cleaning up threads
-void sigchld_handler(int s){ while(waitpid(-1, NULL, WNOHANG) > 0); }
+void *get_in_addr(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
 
 TcpSocket::TcpSocket(){}
 
@@ -83,15 +85,15 @@ void TcpSocket::bindServer(string port)
 }
 
 string TcpSocket::getFileMetadata(int size, string checksum,
-	string sdfsfilename, string localfilename, string remoteLocalfilename)
+	string sdfsfilename, string localfilename, string remoteLocalfilename, string overwrite)
 {
 	// format: size,checksum,sdfsfilename
-	string msg = to_string(size) + "," + checksum + "," + sdfsfilename+","+localfilename+","+remoteLocalfilename;
+	string msg = to_string(size) + "," + checksum + "," + sdfsfilename+","+localfilename+","+remoteLocalfilename+","+overwrite;
 	return msg;
 }
 
 void TcpSocket::sendFile(string ip, string port,
-	string localfilename, string sdfsfilename, string remoteLocalfilename)
+	string localfilename, string sdfsfilename, string remoteLocalfilename, string overwrite)
 {
 	int numbytes, sockfd;
 	char buf[DEFAULT_TCP_BLKSIZE];
@@ -110,7 +112,7 @@ void TcpSocket::sendFile(string ip, string port,
 
 	// send bytes and filename first
 	FileObject f(localfilename);
-	Messages msg(PUT, getFileMetadata(size, f.checksum, sdfsfilename, localfilename, remoteLocalfilename));
+	Messages msg(PUT, getFileMetadata(size, f.checksum, sdfsfilename, localfilename, remoteLocalfilename, overwrite));
 	string payload = msg.toString();
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");
@@ -129,21 +131,21 @@ void TcpSocket::sendFile(string ip, string port,
 	close(sockfd);
 }
 
-void TcpSocket::sendLines(string ip, string port, string localfilename, int start, int end)
+void TcpSocket::sendLines(string ip, string port, string execfile, string readfile, string prefix, int start, int end)
 {
 	int sockfd = 0, lineCounter = -1;
 	if ((sockfd = createConnection(ip, port)) == -1) return;
-	// send lines and filename first
-	string toSend = localfilename + "," + to_string(start) + "," + localfilename + to_string(start) + "temp";
+	//exec, read, start, tmp, prefix
+	string toSend = execfile + "," + readfile + "," + to_string(start) + "," + readfile + to_string(start) + "temp" + "," + prefix;
 	Messages msg(PUT, toSend);
 	string payload = msg.toString();
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");
 	}
 	sleep(1);
-	ifstream file(localfilename.c_str());
+	ifstream file(readfile.c_str());
     string str;
-    while (std::getline(file, str))
+    while (getline(file, str))
     {
 		lineCounter++;
         if (lineCounter < start) continue;
@@ -209,31 +211,37 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case PUT: {
 			FILE *fp;
 			int filesize = 0, byteReceived = 0;
-			string sdfsfilename = "", incomingChecksum = "", remoteLocalname = "", overwriteFilename = "";
+			string mode = "wb";
+			string sdfsfilename = "", incomingChecksum = "", remoteLocalname = "", overwriteFilename = "", prefix = "", overwrite = "", localfilename = "";
 			// format: size,checksum,sdfsfilename
 			vector<string> fields = splitString(msg.payload, ",");
 			int start = -1;
-			if (fields.size() >= 5) {
+			if (fields.size() >= 6) {
 				filesize = stoi(fields[0]);
 				incomingChecksum = fields[1];
 				sdfsfilename = fields[2];
 				remoteLocalname = fields[3];
 				overwriteFilename = fields[4];
+				overwrite = fields[5];
+				if ((stoi(overwrite)) == 0) mode = "ab";
 				cout << "file is " << sdfsfilename << " with size " << filesize << " and checksum " << incomingChecksum << endl;
 				time_t fileTimestamp;
 				time(&fileTimestamp);
-				string localfilename = sdfsfilename+"_"+to_string(fileTimestamp);
+				localfilename = sdfsfilename+"_"+to_string(fileTimestamp);
 				if (overwriteFilename.compare("") != 0) {
 					localfilename = overwriteFilename;
 					cout << "it's GET with filename " << overwriteFilename << endl;
 				}
 				cout << "backup filename " << localfilename << endl;
 			} else {
-				localfilename = fields[2];
-				sdfsfilename = fields[0];
-				start = fields[1];
+				//exec, read, start, tmp, prefix
+				localfilename = fields[3]; //tempfile to read from
+				sdfsfilename = fields[0]; //exec file name
+				start = stoi(fields[2]); //start line (used just for signalling what work finished to master)
+				remoteLocalname = fields[1]; //actual file (used for signalling)
+				prefix = fields[4];
 			}
-			fp = fopen(localfilename.c_str(), "wb");
+			fp = fopen(localfilename.c_str(), mode.c_str());
 			if (fp == NULL) {
 				cout << "file error" << endl;
 				close(sockfd);
@@ -258,10 +266,13 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				// TODO: Handel file corruption here
 			} else {
 				if (start != -1){
-					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + start + "::" + localfilename);
+					//IP, exec, start, temp, actual file, prefix
+					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + to_string(start) + "::" + localfilename + "::" + remoteLocalname + "::" + prefix);
+					regMessages.push(putack.toString());
+				} else {
+					Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
+					regMessages.push(putack.toString());
 				}
-				else Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
-				regMessages.push(putack.toString());
 			}
 			break;
 		}

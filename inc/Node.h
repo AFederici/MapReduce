@@ -8,6 +8,9 @@
 #include <pthread.h>
 #include <time.h>
 #include <signal.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/types.h>
 
 #include "Messages.h"
 #include "Modes.h"
@@ -33,7 +36,7 @@ using namespace std;
 #define N_b 5 // how many nodes GOSSIP want to use
 #define T_election 15 // in T_period
 #define T_switch 3 // in seconds
-#define T_maples // lines to process
+#define T_maples 80 // lines to process
 //
 
 void *runUdpServer(void *udpSocket);
@@ -76,10 +79,12 @@ public:
 	map<string, tuple<bool, bool, bool>> pendingRequestSent; //?
 
 	//master properties for MAPLEJUICE
-	map<string, vector<tuple<string, string, string>>> mapleProccessing; //ip -> [ (file, chunk_start, originIP) ]
+	map<string, vector<tuple<string, string, string>>> mapleProcessing; //ip -> [ (file, chunk_start, originIP) ]
 	map<string, tuple<long int, int>> fileSizes; //used so master can partition in the map phase tuple is (bytes, lines)
 	HashRing *mapleRing;
 	map<string, vector<tuple<string, string>>> mapleSending; //originIP -> (file, chunk_start);
+	string mapleExe;
+	string sdfsPre;
 
 
 	Node();

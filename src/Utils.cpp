@@ -1,4 +1,5 @@
 #include "../inc/Utils.h"
+#include <stdio.h>
 
 vector<string> splitString(string s, string delimiter){
 	vector<string> result;
@@ -20,6 +21,8 @@ string getIP(){
 	}
 	return getIP(host);
 }
+
+void sigchld_handler(int s){ while(waitpid(-1, NULL, WNOHANG) > 0); }
 
 string getIP(const char * host){
 	struct hostent *hp;
@@ -47,21 +50,19 @@ bool isInVector(vector<int> v, int i){
 	return false;
 }
 
-template<typename T>
-vector<T> randItems(int numItems, vector<T> toChoose){
-	srand(time(NULL));
-	vector<int> availableNodesInfo(toChoose);
-	vector<int> indexList;
-	int availableNodes = availableNodesInfo.size();
-	for (int i = 0; i < availableNodes; i++) indexList.push_back(i);
-	if (availableNodes <= toChoose) return availableNodesInfo;
-	int nodeCount = 0;
-	while (nodeCount < N_b) {
-		int randomNum = rand() % availableNodes;
-		selectedNodesInfo.push_back(availableNodesInfo[indexList[randomNum]]);
-		indexList.erase(indexList.begin() + randomNum);
-		availableNodes--;
-		nodeCount++;
+void handlePipe(int file, string prefix) {
+	size_t bufSize = 1024;
+    FILE *stream = fdopen(file, "r"); FILE *tmp;
+    char str[bufSize];
+	const char * delim = ",";
+    while ((fgets(str, bufSize, stream)) != NULL){
+		std::string key(strtok(str, delim));
+    	std::string val(strtok(NULL, delim));
+		string keyFile = "tmp-" + prefix + "-" + key;
+		string write = key + "," + val + "\n";
+		tmp = fopen(keyFile.c_str(), "ab");
+		fwrite(write.c_str(),sizeof(char),write.size(),tmp);
+		fclose(tmp);
 	}
-	return availableNodesInfo;
-}
+    fclose (stream);
+  }

@@ -118,18 +118,11 @@ void *runTcpClientTEST(void *tcpSocket)
 	// testing to send file
 	for (int i=0; i<2; i++) {
 		sleep(1);
-		tcp->sendFile("127.0.0.1", TCPPORT, "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3");
+		tcp->sendFile("127.0.0.1", TCPPORT, "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3", "1");
 	}
 	pthread_exit(NULL);
 }
 
-void *get_in_addr(struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 /*
 int main(int argc, char *argv[])
 {

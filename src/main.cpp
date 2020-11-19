@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 	node->localFilelist.clear(); // for testing
-	node->fileSize.clear();
+	node->fileSizes.clear();
 	/*node->localFilelist["sdfsfilename1"] = "localfilename1";
 	node->localFilelist["sdfsfilename2"] = "localfilename2";*/
 
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 			if (!node->isBlackout) {
 				string localfilename = cmdLineInput[1];
 				string sdfsfilename = cmdLineInput[2];
-				fp = fopen(localfilename.c_str(), "rb");
+				FILE * fp = fopen(localfilename.c_str(), "rb");
 				if (fp == NULL) {
 					cout << "[PUT] The file " << localfilename << " does not exist" << endl;
 					continue;
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 				string line;
 				ifstream myfile(localfilename.c_str());
 				while (getline(myfile, line)) ++number_of_lines;
-				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines));
+				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::" + "::" + "1");
 				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
 				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {

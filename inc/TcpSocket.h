@@ -27,6 +27,7 @@
 #include "MessageTypes.h"
 #include "Messages.h"
 #include "Utils.h"
+#include "FileObject.h"
 #ifdef __linux__
 #include <bits/stdc++.h>
 #endif
@@ -41,7 +42,6 @@ using std::get;
 #define DEFAULT_TCP_BLKSIZE (128 * 1024)
 #define BACKLOG 10
 #define TCPPORT "4950"
-
 class TcpSocket {
 public:
 	//tcp server directly handles PUTs. If put received, request from
@@ -53,13 +53,13 @@ public:
 	queue<string> mapleMessages; //keeps track of sending
 
 	void bindServer(string port);
-	void sendFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename);
-	void sendLines(string ip, string port, string localfilename, int start, int end);
+	void sendFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename, string overwrite);
+	void sendLines(string ip, string port, string execFile, string localFile, string prefix, int start, int end);
 	void sendMessage(string ip, string port, string message);
 	int messageHandler(int sockfd, string payloadMessage, string returnID);
 	int createConnection(string ip, string port);
 	TcpSocket();
 private:
-	string getFileMetadata(int size, string checksum, string sdfsfilename, string localfilename, string remoteLocalfilename);
+	string getFileMetadata(int size, string checksum, string sdfsfilename, string localfilename, string remoteLocalfilename, string overwrite);
 };
 #endif //TCPSOCKET_H
