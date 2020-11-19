@@ -27,8 +27,6 @@ enum MessageType {
 	JUICESTART, //send to master to initiate juice phase
 	MAPLEACK,
 	CHUNK, //send to nodes so they have information about what kind of get request to send
-	APPEND, //process get request and send an append request, need to add this to all replicas too. Check into blackout stuff
-	APPENDACK,
 	CHUNKACK, //after append ack received, send this back to master to know when things are Done
 };
 

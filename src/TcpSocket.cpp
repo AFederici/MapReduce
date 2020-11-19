@@ -285,6 +285,10 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case DNSGET:
 		case DELETE:
 		case GETNULL:
+		case MAPLESTART:
+		case MAPLEACK:
+		case CHUNK:
+		case CHUNKACK:
 		case DNS:{
 			cout << "Type: " << msg.type << " payloadMessage: " << payloadMessage << endl;
 			regMessages.push(payloadMessage); //handle from queue
