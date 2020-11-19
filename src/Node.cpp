@@ -821,9 +821,10 @@ void Node::handleTcpMessage()
 			case MAPLESTART: {
 				//leader only function
 				//currently running something, dont start a new phase
-				if (mapleProcessing.size()) {tcpServent->regMessages.push(msg.toString()); break;}
+				if (mapleProcessing.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
+				cout << "[MAPLE] Leader starting new Maple phase" << endl;
 				if (inMsg.size() >= 4){
-					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3];
+					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
 					int workers = stoi(num_maples);
 					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
 					int total_lines = 0;
@@ -834,22 +835,28 @@ void Node::handleTcpMessage()
 							total_lines += get<1>(e.second);
 						}
 					}
+					cout << "[MAPLE] need to process " << to_string(total_lines) << endl;
 					vector<tuple<string,string,string>> aliveNodes;
 					for (auto &e : membershipList) aliveNodes.push_back(e.first);
 					vector<tuple<string,string,string>> mapleNodes = randItems(workers, aliveNodes);
+					string includedDebug = "";
 					for (auto &e : mapleNodes) {
 						Member m(get<0>(e), get<1>(e));
 						mapleRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
+						includedDebug += get<0>(e) + ",";
 					}
+					cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
 					int start = 0, id = 0;
 					string s;
 					for (auto &e: directory){
 						start = 0;
+						cout << "[MAPLE] file: " << get<0>(e) << " - " << to_string(get<1>(e)) << endl;
 						while (start < get<1>(e)){
 							s = get<0>(e) + "::" + to_string(start);
 							id = mapleRing->locateClosestNode(s);
 							vector<int> temp = randItems(1, fileList[get<0>(e)]);
 							mapleProcessing[mapleRing->getValue(id)].push_back(make_tuple(get<0>(e), to_string(start), mapleRing->getValue(temp[0])));
+							cout << "[MAPLE] assign file " << get<0>(e) << " at " << to_string(start) << " to " << mapleRing->getValue(temp[0]) << endl;
 							mapleSending[mapleRing->getValue(temp[0])].push_back(make_tuple(get<0>(e), to_string(start)));
 							string maplemsg = mapleRing->getValue(id) + "::" +mapleExe + "::" + s + "::" + sdfsPre;
 							//IP, exec, file, start, prefix
