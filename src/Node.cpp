@@ -882,7 +882,7 @@ void Node::handleTcpMessage()
 
 			case CHUNKACK: {
 				cout << "[CHUNKACK] receiving the put worked!" << endl;
-				//IP, exec, start, temp, actual file, prefix
+				//IP, exec, start, temp, actual file
 				if (!isLeader) {
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
@@ -896,22 +896,25 @@ void Node::handleTcpMessage()
 					    fprintf (stderr, "Fork failed.\n"); break;
 					} else { //child process
 					  close(dataPipe[0]);
+					  cout << "[CHUNKACK] processing " << inMsg[3] << endl;
 					  dup2(dataPipe[1], 1); //stdout -> write end of pipe
 					  string execName = "./" + inMsg[4];
 					  int status = execl(execName.c_str(),execName.c_str(),inMsg[3].c_str(),NULL);
 					  if (status < 0) exit(status);
 					}
+					int status;
+					waitpid(pid, &status, 0);
 					close(dataPipe[0]);close(dataPipe[1]);
 					//go thorugh and process things from datapipe
 					//if processing success, send out TCP MAPLEACK
-					string match = "tmp-" + inMsg[5];
+					string match = "tmp-" + sdfsPre;
 					int matchLen = match.size();
 					struct dirent *entry = nullptr;
 					DIR *dp = nullptr;
-					if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << match << endl; break; }
+					if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << sdfsPre << endl; break; }
 					while ((entry = readdir(dp))){
-						cout << "[FILES] found " << entry->d_name << " looking to match " << to_string(matchLen) << " chars from " << match << endl;
-					    if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
+						//cout << "[FILES] found " << entry->d_name << " looking to match " << to_string(matchLen) << " chars from " << sdfsPre << endl;
+					    if (strncmp(entry->d_name, sdfsPre.c_str(), matchLen) == 0){
 							string searcher(entry->d_name);
 							string target = searcher.substr(4);
 							cout << "[CHUNKACK] found " << entry->d_name << endl;

@@ -51,6 +51,8 @@ bool isInVector(vector<int> v, int i){
 
 void handlePipe(int file, string prefix) {
 	size_t bufSize = 1024;
+	cout << "[PIPE] sleeping for data " << endl;
+	sleep(5);
     FILE *stream = fdopen(file, "r"); FILE *tmp;
     char str[bufSize];
 	const char * delim = ",";

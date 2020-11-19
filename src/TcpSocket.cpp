@@ -136,7 +136,8 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 	int sockfd = 0, lineCounter = -1;
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	//exec, read, start, tmp, prefix
-	string toSend = execfile + "," + readfile + "," + to_string(start) + "," + readfile + to_string(start) + "temp" + "," + prefix;
+	vector<string> unDirectory = splitString(readfile, "-");
+	string toSend = execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
 	Messages msg(PUT, toSend);
 	string payload = msg.toString();
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
@@ -240,7 +241,6 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				sdfsfilename = fields[0]; //exec file name
 				start = stoi(fields[2]); //start line (used just for signalling what work finished to master)
 				remoteLocalname = fields[1]; //actual file (used for signalling)
-				prefix = fields[4];
 			}
 			fp = fopen(localfilename.c_str(), mode.c_str());
 			if (fp == NULL) {
@@ -267,8 +267,8 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				// TODO: Handel file corruption here
 			} else {
 				if (start != -1){
-					//IP, exec, start, temp, actual file, prefix
-					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + to_string(start) + "::" + localfilename + "::" + remoteLocalname + "::" + prefix);
+					//IP, exec, start, temp, actual file
+					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + to_string(start) + "::" + localfilename + "::" + remoteLocalname);
 					regMessages.push(putack.toString());
 				} else {
 					Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
