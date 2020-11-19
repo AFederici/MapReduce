@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -17,6 +18,8 @@
 #endif
 
 using std::string;
+using std::cout;
+using std::endl;
 using std::vector;
 using std::get;
 using std::tuple_element;
