@@ -166,9 +166,9 @@ int main(int argc, char *argv[])
 				cout << "USAGE: maple maple_exe num_maples sdfs_intermediate_dir sdfs_src_dir" << endl;
 				continue;
 			}
-			if (FILE *file = fopen(cmdLineInput[1].c_str(), "r")) {
-				fclose(file);
-			} else {
+			struct stat sb;
+			if (stat(cmdLineInput[1].c_str(), &sb) == 0 && sb.st_mode & S_IXUSR) { cout << endl; }
+			else {
 				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally" << endl;
 				continue;
 			}

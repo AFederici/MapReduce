@@ -12,6 +12,10 @@
 #include <dirent.h>
 #include <sys/types.h>
 
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "Messages.h"
 #include "Modes.h"
 #include "Member.h"
