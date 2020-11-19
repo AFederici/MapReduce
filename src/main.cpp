@@ -167,8 +167,8 @@ int main(int argc, char *argv[])
 				continue;
 			}
 			string testCommand = "./" + cmdLineInput[1] + " > /dev/null 2>&1";
-			if (system(testCommand.c_str())) {
-				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally" << endl;
+			if (system(testCommand.c_str()) == -1) {
+				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally, " << testCommand << " failed." << endl;
  			   	continue;
 			}
 			if (!node->isBlackout){
