@@ -55,7 +55,7 @@ void *runSenderThread(void *node)
 	nodeOwn->activeRunning = true;
 
 	// heartbeat to introducer to join the system
-	Member introducer(nodeOwn->leaderIP, PORT);
+	Member introducer(getIP(INTRODUCER), PORT);
 	nodeOwn->joinSystem(introducer);
 
 	while (nodeOwn->activeRunning) {
