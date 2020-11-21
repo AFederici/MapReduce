@@ -133,7 +133,7 @@ void TcpSocket::sendFile(string ip, string port,
 
 void TcpSocket::sendLines(string ip, string port, string execfile, string readfile, string prefix, int start, int end)
 {
-	int sockfd = 0, lineCounter = -1; numbytes = 0;
+	int sockfd = 0, lineCounter = -1, numbytes = 0;
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	//exec, read, start, tmp, prefix
 	vector<string> unDirectory = splitString(readfile, "-");
@@ -156,8 +156,6 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 		perror("send");
 	}
 	sleep(1);
-	ifstream file(getMostRecentFile(readfile).c_str());
-    string str;
     while (getline(file, str))
     {
 		lineCounter++;
