@@ -145,7 +145,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 		perror("send");
 	}
 	sleep(1);
-	ifstream file(getMostRecentFile(readfile));
+	ifstream file(getMostRecentFile(readfile).c_str());
     string str;
     while (getline(file, str))
     {
