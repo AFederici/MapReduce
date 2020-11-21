@@ -22,3 +22,18 @@ int FileObject::getPositionOnHashring(){
     positionOnHashring = hash<string>{}(toBeHashed) % HASHMODULO;
     return 0;
 }
+
+string getMostRecentFile(string readfile){
+    struct dirent *entry = nullptr;
+    DIR *dp = nullptr;
+    int matchLen = readfile.size();
+    vector<string> fileVersions;
+    if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl; return ""; }
+    while ((entry = readdir(dp))){
+        if (strncmp(entry->d_name, readfile.c_str(), matchLen) == 0){
+            fileVersions.push_back(entry->d_name);
+        }
+    }
+    sort(fileVersions.begin(), fileVersions.end());
+    return fileVersions[fileVersions.size()-1];
+}

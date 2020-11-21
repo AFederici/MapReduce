@@ -6,10 +6,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fstream>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/types.h>
 
 #include "HashRing.h"
 
 using namespace std;
+
+string getMostRecentFile(string readfile);
 
 class FileObject {
 public:

@@ -139,13 +139,13 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 	vector<string> unDirectory = splitString(readfile, "-");
 	string toSend = execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
 	Messages msg(PUT, toSend);
-	cout << "[CHUNK] " << msg.toString() << endl;
+	cout << "[CHUNK] " << messageTypes[msg.type] << " | " << msg.toString() << endl;
 	string payload = msg.toString();
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");
 	}
 	sleep(1);
-	ifstream file(readfile.c_str());
+	ifstream file(getMostRecentFile(readfile));
     string str;
     while (getline(file, str))
     {
@@ -227,7 +227,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				overwriteFilename = fields[4];
 				overwrite = fields[5];
 				if ((stoi(overwrite)) == 0) mode = "ab";
-				cout << "file is " << sdfsfilename << " with size " << filesize << " and checksum " << incomingChecksum << endl;
+				cout << "[PUT] file is " << sdfsfilename << " with size " << filesize << " and checksum " << incomingChecksum << endl;
 				time_t fileTimestamp;
 				time(&fileTimestamp);
 				localfilename = sdfsfilename+"_"+to_string(fileTimestamp);
@@ -242,7 +242,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				sdfsfilename = fields[0]; //exec file name
 				start = stoi(fields[2]); //start line (used just for signalling what work finished to master)
 				remoteLocalname = fields[1]; //actual file (used for signalling)
-				cout << "exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << fields[2] << ", temp: " << fields[3] << endl;
+				cout << "[PUT] exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << fields[2] << ", temp: " << fields[3] << endl;
 			}
 			fp = fopen(localfilename.c_str(), mode.c_str());
 			if (fp == NULL) {
@@ -293,7 +293,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case CHUNK:
 		case CHUNKACK:
 		case DNS:{
-			cout << "Type: " << msg.type << " payloadMessage: " << payloadMessage << endl;
+			cout << "Type: " << messageTypes[msg.type] << " payloadMessage: " << payloadMessage << endl;
 			regMessages.push(payloadMessage); //handle from queue
 			break;
 		}
