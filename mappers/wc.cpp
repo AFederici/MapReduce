@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
     std::string delim = " ";
     while (std::getline(file, str))
     {
-        for (int i = 0; i < str.size(); i++) {
+        for (size_t i = 0; i < str.size(); i++) {
             if (str[i] == '.' || str[i] == ',' || str[i] == '?' || str[i] == ';' || str[i] == '!') str[i] = ' ';
         }
         std::transform(str.begin(), str.end(), str.begin(), ::tolower);

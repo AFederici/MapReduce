@@ -324,7 +324,7 @@ int Node::listenToHeartbeats() {
 	int size = qCopy.size();
 	//cout << "Got " << size << " messages in the queue" << endl;
 	//cout << "checking queue size " << nodeOwn->udpServent->qMessages.size() << endl;
-	for (int j = 0; j < size; j++) {
+	for (size_t j = 0; j < size; j++) {
 		//cout << qCopy.front() << endl;
 		handleUdpMessage(qCopy.front());
 		if(this->activeRunning == false) return 0;
@@ -694,7 +694,7 @@ void Node::tcpElectionProcessor()
 	queue<string> qCopy(tcpServent->qMessages);
 	tcpServent->qMessages = queue<string>();
 	//cout << "Got " << size << " TCP messages" << endl;
-	for (int j=0; j<qCopy.size(); j++) {
+	for (size_t j=0; j<qCopy.size(); j++) {
 		//cout << qCopy.front() << endl;
 		Messages msg(qCopy.front());
 		//cout << "Has " << msg.type << " with " << msg.payload << endl;
@@ -888,7 +888,7 @@ void Node::handleTcpMessage()
 
 			case CHUNKACK: {
 				cout << "[CHUNKACK] receiving the put worked!" << endl;
-				//IP, exec, start, temp, actual file
+				//IP, exec, start, temp, actual file, prefix
 				if (!isLeader) {
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
@@ -921,12 +921,12 @@ void Node::handleTcpMessage()
 					while ((entry = readdir(dp))){
 						//cout << "[FILES] found " << entry->d_name << " looking to match " << to_string(matchLen) << " chars from " << match << endl;
 					    if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
-							string searcher(entry->d_name);
-							string target = searcher.substr(4); //get rid of tmp for official keys
-							//cout << "[CHUNKACK] found " << entry->d_name << endl;
-
+							vector<string> tempVec = splitString(entry->d_name, "-");
+							if (tempVec.size() != 2) continue; //temp keys in form tmp-key
+							string keyFile = inMsg[5] + "-" + tempVec[tempVec.size()-1];
+							cout << "[CHUNKACK] transform from: " << entry->d_name << " to " << keyFile << endl;
 							//TODO: add prefix here
-							Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + target + "::" + entry->d_name + "::" + to_string(-1) + "::" + to_string(-1) + "::" + target + "::" + "0");
+							Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + keyFile + "::" + entry->d_name + "::" + to_string(-1) + "::" + to_string(-1) + "::" + keyFile + "::" + "0");
 
 							//cout << "[PUT] Got localfilename: " << entry->d_name << " with sdfsfilename: " << target << endl;
 							tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());

@@ -149,7 +149,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 	file.clear();  // clear fail and eof bits
 	file.seekg(0); // back to the start!
 	lineCounter = -1;
-	string toSend = to_string(numbytes) + "," + execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
+	string toSend = to_string(numbytes) + "," + execfile + "," + readfile + "," + to_string(start) + "," + "tmp-"+to_string(start)+"-"+unDirectory[1] + "," + prefix + ",";
 	Messages msg(PUT, toSend);
 	cout << "[CHUNK] " << messageTypes[msg.type] << " | " << msg.toString() << endl;
 	string payload = msg.toString();
@@ -229,7 +229,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			// format: size,checksum,sdfsfilename
 			vector<string> fields = splitString(msg.payload, ",");
 			int start = -1;
-			if (fields.size() >= 6) {
+			if (fields.size() == 6) {
 				filesize = stoi(fields[0]);
 				incomingChecksum = fields[1];
 				sdfsfilename = fields[2];
@@ -253,7 +253,8 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				sdfsfilename = fields[1]; //exec file name
 				start = stoi(fields[3]); //start line (used just for signalling what work finished to master)
 				remoteLocalname = fields[2]; //actual file (used for signalling)
-				cout << "[PUT] bytes: " << fields[0] << " exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << fields[2] << ", temp: " << fields[3] << endl;
+				prefix = fields[5];
+				cout << "[PUT] bytes: " << filesize << " exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << to_string(start) << ", temp: " << localfilename  << ", prefix: " << prefix << endl;
 			}
 			fp = fopen(localfilename.c_str(), mode.c_str());
 			if (fp == NULL) {
@@ -281,7 +282,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			//} else {
 				if (start != -1){
 					//IP, exec, start, temp, actual file
-					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + to_string(start) + "::" + localfilename + "::" + remoteLocalname);
+					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + to_string(start) + "::" + localfilename + "::" + remoteLocalname + "::" + prefix);
 					regMessages.push(putack.toString());
 				} else {
 					Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
