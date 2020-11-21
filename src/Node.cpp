@@ -826,7 +826,7 @@ void Node::handleTcpMessage()
 				if (inMsg.size() >= 4){
 					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
 					int workers = stoi(num_maples);
-					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
+					if (workers > hashRing->nodePositions.size()-2) workers = hashRing->nodePositions.size()-2;
 					int total_lines = 0;
 					vector<tuple<string,int>> directory;
 					cout << "[DIRECTORY] " << sdfs_dir << endl;
@@ -841,7 +841,7 @@ void Node::handleTcpMessage()
 					}
 					cout << "[MAPLE] need to process " << to_string(total_lines) << endl;
 					vector<tuple<string,string,string>> aliveNodes;
-					for (auto &e : membershipList) aliveNodes.push_back(e.first);
+					for (auto &e : membershipList) if (e.first.compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
 					vector<tuple<string,string,string>> mapleNodes = randItems(workers, aliveNodes);
 					string includedDebug = "";
 					for (auto &e : mapleNodes) {

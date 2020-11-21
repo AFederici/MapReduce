@@ -152,7 +152,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 		lineCounter++;
         if (lineCounter < start) continue;
 		else if (lineCounter == start) cout << "[CHUNK] starting to send at line " << to_string(lineCounter) << endl;
-		if (lineCounter >= end) { cout << "Counter at " << to_string(lineCounter) << " end: " << to_string(end) << endl; break; }
+		if (lineCounter >= end) { cout << "[CHUNK] Counter at " << to_string(lineCounter) << " end: " << to_string(end) << endl; break; }
 		if (send(sockfd, str.c_str(), strlen(str.c_str()), 0) == -1) {
 			perror("send");
 		}
@@ -293,7 +293,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case CHUNK:
 		case CHUNKACK:
 		case DNS:{
-			cout << "Type: " << messageTypes[msg.type] << " payloadMessage: " << payloadMessage << endl;
+			cout << "["<< messageTypes[msg.type] << "] payloadMessage: " << payloadMessage << endl;
 			regMessages.push(payloadMessage); //handle from queue
 			break;
 		}
