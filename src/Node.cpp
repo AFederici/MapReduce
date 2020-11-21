@@ -861,6 +861,7 @@ void Node::handleTcpMessage()
 						while (start < lines){
 							s = file + "::" + to_string(start);
 							id = mapleRing->locateClosestNode(s);
+							srand(time(NULL));
 							vector<int> temp = randItems(1, fileList[file]);
 							string sender = hashRing->getValue(temp[0]); //because files are part of sdfs anyone can be the sender
 							string processor = mapleRing->getValue(id); //processor is a maple worker
