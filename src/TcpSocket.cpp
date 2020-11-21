@@ -133,11 +133,22 @@ void TcpSocket::sendFile(string ip, string port,
 
 void TcpSocket::sendLines(string ip, string port, string execfile, string readfile, string prefix, int start, int end)
 {
-	int sockfd = 0, lineCounter = -1;
+	int sockfd = 0, lineCounter = -1; numbytes = 0;
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	//exec, read, start, tmp, prefix
 	vector<string> unDirectory = splitString(readfile, "-");
-	string toSend = execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
+	ifstream file(getMostRecentFile(readfile).c_str());
+    string str;
+    while (getline(file, str))
+    {
+		lineCounter++;
+        if (lineCounter < start) continue;
+		if (lineCounter >= end) break;
+		numbytes += str.size();
+    }
+	file.clear();                 // clear fail and eof bits
+	file.seekg(0, std::ios::beg); // back to the start!
+	string toSend = to_string(numbytes) + "," + execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
 	Messages msg(PUT, toSend);
 	cout << "[CHUNK] " << messageTypes[msg.type] << " | " << msg.toString() << endl;
 	string payload = msg.toString();
@@ -237,12 +248,13 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				}
 				//cout << "backup filename " << localfilename << endl;
 			} else {
-				//exec, read, start, tmp, prefix
-				localfilename = fields[3]; //tempfile to read from
-				sdfsfilename = fields[0]; //exec file name
-				start = stoi(fields[2]); //start line (used just for signalling what work finished to master)
-				remoteLocalname = fields[1]; //actual file (used for signalling)
-				cout << "[PUT] exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << fields[2] << ", temp: " << fields[3] << endl;
+				//size, exec, read, start, tmp, prefix
+				filesize = stoi(fields[0]);
+				localfilename = fields[4]; //tempfile to read from
+				sdfsfilename = fields[1]; //exec file name
+				start = stoi(fields[3]); //start line (used just for signalling what work finished to master)
+				remoteLocalname = fields[2]; //actual file (used for signalling)
+				cout << "[PUT] bytes: " << fields[0] << " exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << fields[2] << ", temp: " << fields[3] << endl;
 			}
 			fp = fopen(localfilename.c_str(), mode.c_str());
 			if (fp == NULL) {

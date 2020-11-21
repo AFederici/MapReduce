@@ -227,7 +227,7 @@ int Node::failureDetection(){
 						{
 							// it sent out, but replicates are failed
 							// restart again
-							cout << "[PUT/REREPLICATE] The sender " << get<0>(keyTuple) << " failed, try again" << endl;
+							//cout << "[PUT/REREPLICATE] The sender " << get<0>(keyTuple) << " failed, try again" << endl;
 							pendingRequests.erase(sdfsfilename);
 						}
 					}
