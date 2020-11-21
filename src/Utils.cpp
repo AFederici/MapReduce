@@ -31,7 +31,7 @@ string getIP(const char * host){
 	}
 	return inet_ntoa(*(struct in_addr*)hp->h_addr_list[0]);
 }
-
+/*
 int new_thread_id() {
     int rv;
     pthread_mutex_lock(&thread_counter_lock);
@@ -39,6 +39,7 @@ int new_thread_id() {
     pthread_mutex_unlock(&thread_counter_lock);
     return rv;
 }
+*/
 
 bool isInVector(vector<int> v, int i){
 	for(int element: v){
