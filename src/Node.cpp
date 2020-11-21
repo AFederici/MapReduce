@@ -892,14 +892,14 @@ void Node::handleTcpMessage()
 					pid_t pid = fork();
 					if (pid){ //parent process, DONT need to waitpid because of signal handler set up
 					  close(dataPipe[1]);
-					  handlePipe(dataPipe[0], inMsg[5]);
+					  handlePipe(dataPipe[0], sdfsPre);
 					} else if (pid < 0) {
 					    fprintf (stderr, "Fork failed.\n"); break;
 					} else { //child process
 					  close(dataPipe[0]);
-					  cout << "[CHUNKACK] processing " << inMsg[3] << endl;
+					  string execName = "./" + inMsg[1];
+					  cout << "[CHUNKACK] processing " << inMsg[3] << " with " << execName << endl;
 					  dup2(dataPipe[1], 1); //stdout -> write end of pipe
-					  string execName = "./" + inMsg[4];
 					  int status = execl(execName.c_str(),execName.c_str(),inMsg[3].c_str(),NULL);
 					  if (status < 0) exit(status);
 					}
