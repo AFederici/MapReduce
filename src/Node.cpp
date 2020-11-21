@@ -855,16 +855,20 @@ void Node::handleTcpMessage()
 					string s;
 					for (auto &e: directory){
 						start = 0;
-						cout << "[MAPLE] file: " << get<0>(e) << " - " << to_string(get<1>(e)) << endl;
-						while (start < get<1>(e)){
-							s = get<0>(e) + "::" + to_string(start);
+						string file = get<0>(e);
+						int lines = get<1>(e);
+						cout << "[MAPLE] file: " << file << " - " << to_string(lines) << endl;
+						while (start < lines){
+							s = file + "::" + to_string(start);
 							id = mapleRing->locateClosestNode(s);
-							vector<int> temp = randItems(1, fileList[get<0>(e)]);
-							mapleProcessing[mapleRing->getValue(id)].push_back(make_tuple(get<0>(e), to_string(start), mapleRing->getValue(temp[0])));
-							cout << "[MAPLE] assign file " << get<0>(e) << " at " << to_string(start) << " to " << mapleRing->getValue(temp[0]) << endl;
-							mapleSending[mapleRing->getValue(temp[0])].push_back(make_tuple(get<0>(e), to_string(start)));
-							string maplemsg = mapleRing->getValue(id) + "::" +mapleExe + "::" + s + "::" + sdfsPre;
-							//IP, exec, file, start, prefix
+							vector<int> temp = randItems(1, fileList[file]);
+							string sender = hashRing->getValue(temp[0]); //because files are part of sdfs anyone can be the sender
+							string processor = mapleRing->getValue(id); //processor is a maple worker
+							mapleProcessing[processor].push_back(make_tuple(file, to_string(start), sender));
+							cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
+							mapleSending[sender].push_back(make_tuple(file, to_string(start)));
+							string maplemsg = sender + "::" + processor + "::" +mapleExe + "::" + s + "::" + sdfsPre;
+							//sender, processor, exec, file, start, prefix
 							tcpServent->mapleMessages.push(maplemsg);
 							start = start + T_maples;
 						}

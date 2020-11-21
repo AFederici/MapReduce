@@ -146,8 +146,9 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 		if (lineCounter >= end) break;
 		numbytes += str.size();
     }
-	file.clear();                 // clear fail and eof bits
-	file.seekg(0, std::ios::beg); // back to the start!
+	file.clear();  // clear fail and eof bits
+	file.seekg(0); // back to the start!
+	lineCounter = -1;
 	string toSend = to_string(numbytes) + "," + execfile + "," + readfile + "," + to_string(start) + "," + prefix+"-tmp"+to_string(start)+"-"+unDirectory[1];
 	Messages msg(PUT, toSend);
 	cout << "[CHUNK] " << messageTypes[msg.type] << " | " << msg.toString() << endl;

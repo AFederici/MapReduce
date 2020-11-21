@@ -1,35 +1,7 @@
 #ifndef MESSAGESTYPES_H
 #define MESSAGESTYPES_H
 
-const static char *messageTypes[] =
-{
-	"ACK",
-	"JOIN",
-	"LEADERHEARTBEAT",
-	"LEADERPENDING",
-	"HEARTBEAT",
-	"SWREQ",
-	"SWRESP",
-	"JOINRESPONSE",
-	"JOINREJECT",
-	"ELECTION",
-	"ELECTIONACK",
-	"PUT",
-	"PUTACK",
-	"LEADERACK",
-	"DNS",
-	"DNSANS",
-	"DNSGET",
-	"DELETE",
-	"GETNULL",
-	"REREPLICATE",
-	"REREPLICATEGET",
-	"MAPLESTART",
-	"JUICESTART",
-	"MAPLEACK",
-	"CHUNK",
-	"CHUNKACK",
-};
+extern const char *messageTypes[];
 
 enum MessageType {
 	ACK,

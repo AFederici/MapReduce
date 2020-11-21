@@ -1,5 +1,35 @@
 #include "../inc/Logger.h"
 
+const char *messageTypes[] =
+{
+	"ACK",
+	"JOIN",
+	"LEADERHEARTBEAT",
+	"LEADERPENDING",
+	"HEARTBEAT",
+	"SWREQ",
+	"SWRESP",
+	"JOINRESPONSE",
+	"JOINREJECT",
+	"ELECTION",
+	"ELECTIONACK",
+	"PUT",
+	"PUTACK",
+	"LEADERACK",
+	"DNS",
+	"DNSANS",
+	"DNSGET",
+	"DELETE",
+	"GETNULL",
+	"REREPLICATE",
+	"REREPLICATEGET",
+	"MAPLESTART",
+	"JUICESTART",
+	"MAPLEACK",
+	"CHUNK",
+	"CHUNKACK",
+};
+
 Logger::Logger() { filename = LOGFILE; }
 
 Logger::Logger(string fileName) { filename = fileName; }
