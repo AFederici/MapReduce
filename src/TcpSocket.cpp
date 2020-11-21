@@ -242,6 +242,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				sdfsfilename = fields[0]; //exec file name
 				start = stoi(fields[2]); //start line (used just for signalling what work finished to master)
 				remoteLocalname = fields[1]; //actual file (used for signalling)
+				cout << "exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << fields[2] << ", temp: " << fields[3] << endl;
 			}
 			fp = fopen(localfilename.c_str(), mode.c_str());
 			if (fp == NULL) {
@@ -259,7 +260,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				}
 				bzero(buf, sizeof(buf));
 			}
-			cout << "we have all the file, finishing this connections" << endl;
+			cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 			fclose(fp);
 
 			FileObject f(localfilename);
