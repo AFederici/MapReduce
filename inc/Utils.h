@@ -33,9 +33,8 @@ vector<string> splitString(string s, string delimiter);
 string getIP();
 string getIP(const char * host);
 int new_thread_id();
-void handlePipe(int file, string prefix);
+void handlePipe(int file);
 bool isInVector(vector<int> v, int i);
-
 void sigchld_handler(int s);
 
 //adapted from https://stackoverflow.com/questions/23030267/custom-sorting-a-vector-of-tuples

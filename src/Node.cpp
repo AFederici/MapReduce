@@ -747,7 +747,7 @@ void Node::checkFileListConsistency(){
 					Messages outMsg(DNSGET, nodeInfo + "::" + to_string(nodesToCheck[i]) + "::" + element.first + "::");
 					tuple<int, int, int> request = pendingRequests[element.first];
 					if(get<0>(request) != -1 || get<1>(request) != -1 || get<2>(request) != -1){
-						cout << "on put " << get<0>(request) << "/" << get<1>(request) << "/" << get<2>(request) << endl;
+						//cout << "on put " << get<0>(request) << "/" << get<1>(request) << "/" << get<2>(request) << endl;
 						break;
 					}
 					pendingRequests[element.first] = tuple<int, int, int>(-1, -1, nodesToCheck[i]);
@@ -823,6 +823,7 @@ void Node::handleTcpMessage()
 				//currently running something, dont start a new phase
 				if (mapleProcessing.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
 				cout << "[MAPLE] Leader starting new Maple phase" << endl;
+				cleanupTmpFiles();
 				if (inMsg.size() >= 4){
 					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
 					int workers = stoi(num_maples);
@@ -830,17 +831,16 @@ void Node::handleTcpMessage()
 					if (workers > hashRing->nodePositions.size()-2) workers = hashRing->nodePositions.size()-2;
 					int total_lines = 0;
 					vector<tuple<string,int>> directory;
-					cout << "[DIRECTORY] " << sdfs_dir << endl;
+					cout << "[DIRECTORY] " << sdfs_dir;
 					for (auto &e: fileSizes){
-						cout << e.first << " | " << to_string(get<1>(e.second));
+						cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
 						if (strncmp(e.first.c_str(), sdfs_dir.c_str(), sdfs_dir.size()) == 0){
 							cout << " was a match ";
 							directory.push_back(make_tuple(e.first, get<1>(e.second)));
 							total_lines += get<1>(e.second);
 						}
-						cout << endl;
 					}
-					cout << "[MAPLE] need to process " << to_string(total_lines) << endl;
+					cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
 					vector<tuple<string,string,string>> aliveNodes;
 					for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
 					vector<tuple<string,string,string>> mapleNodes = randItems(workers, aliveNodes);
@@ -892,7 +892,7 @@ void Node::handleTcpMessage()
 					pid_t pid = fork();
 					if (pid){ //parent process, DONT need to waitpid because of signal handler set up
 					  close(dataPipe[1]);
-					  handlePipe(dataPipe[0], sdfsPre);
+					  handlePipe(dataPipe[0]);
 					} else if (pid < 0) {
 					    fprintf (stderr, "Fork failed.\n"); break;
 					} else { //child process
@@ -1038,8 +1038,8 @@ void Node::handleTcpMessage()
 						int lines = stoi(inMsg[5]);
 						string overwriteFilename = inMsg[6];
 						string overwrite = inMsg[7];
-						cout << "[DNS] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename;
-						cout << ", localfilename: " << localfilename << ", pos: " << nodePosition << endl;
+						//cout << "[DNS] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename;
+						//cout << ", localfilename: " << localfilename << ", pos: " << nodePosition << endl;
 						// update fileList, client itself is one of the replicas
 						updateFileList(sdfsfilename, nodePosition);
 						fileSizes[sdfsfilename] = make_tuple(size, lines);
@@ -1078,8 +1078,8 @@ void Node::handleTcpMessage()
 					// since we do not keep files in hashRing, the value itself is IPaddress, not NODE:IP_Address
 					string nodeIP = hashRing->getValue(nodePosition);
 					//cout << "nodeIP " << nodeIP << endl;
-					cout << "[DNSANS] " << "we will put sdfsfilename: " << inMsg[2] << " to nodeIP: " << nodeIP;
-					cout << " using localfilename: " << inMsg[1] << endl;
+					//cout << "[DNSANS] " << "we will put sdfsfilename: " << inMsg[2] << " to nodeIP: " << nodeIP;
+					//cout << " using localfilename: " << inMsg[1] << endl;
 					string sendMsg = nodeIP+"::"+inMsg[1]+"::"+inMsg[2]+"::"+inMsg[3]+"::"+inMsg[4];
 					this->tcpServent->pendSendMessages.push(sendMsg);
 				}

@@ -37,3 +37,16 @@ string getMostRecentFile(string readfile){
     sort(fileVersions.begin(), fileVersions.end());
     return fileVersions[fileVersions.size()-1];
 }
+
+void cleanupTmpFiles(){
+    struct dirent *entry = nullptr;
+    DIR *dp = nullptr;
+    string match = "tmp-";
+    int matchLen = match.size();
+    if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl;}
+    while ((entry = readdir(dp))){
+        if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
+            remove(entry->d_name);
+        }
+    }
+}

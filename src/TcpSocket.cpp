@@ -293,7 +293,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case CHUNK:
 		case CHUNKACK:
 		case DNS:{
-			cout << "["<< messageTypes[msg.type] << "] payloadMessage: " << payloadMessage << endl;
+			//cout << "["<< messageTypes[msg.type] << "] payloadMessage: " << payloadMessage << endl;
 			regMessages.push(payloadMessage); //handle from queue
 			break;
 		}

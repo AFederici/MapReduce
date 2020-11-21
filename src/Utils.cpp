@@ -50,9 +50,9 @@ bool isInVector(vector<int> v, int i){
 	return false;
 }
 
-void handlePipe(int file, string prefix) {
+void handlePipe(int file) {
 	size_t bufSize = 1024;
-	cout << "[PIPE] sleeping for data. " << " Prefix: " << prefix << endl;
+	cout << "[PIPE] sleeping for data. " << endl;
 	sleep(5);
     FILE *stream = fdopen(file, "r"); FILE *tmp;
     char str[bufSize];
@@ -62,7 +62,7 @@ void handlePipe(int file, string prefix) {
 		lines++;
 		std::string key(strtok(str, delim));
     	std::string val(strtok(NULL, delim));
-		string keyFile = "tmp-" + prefix + "-" + key;
+		string keyFile = "tmp-" + key;
 		string write = key + "," + val + "\n";
 		tmp = fopen(keyFile.c_str(), "ab");
 		fwrite(write.c_str(),sizeof(char),write.size(),tmp);
