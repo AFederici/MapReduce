@@ -908,19 +908,22 @@ void Node::handleTcpMessage()
 					close(dataPipe[0]);close(dataPipe[1]);
 					//go thorugh and process things from datapipe
 					//if processing success, send out TCP MAPLEACK
-					string match = "tmp-" + sdfsPre;
+					string match = "tmp-";
 					int matchLen = match.size();
 					struct dirent *entry = nullptr;
 					DIR *dp = nullptr;
 					if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << match << endl; break; }
 					while ((entry = readdir(dp))){
-						cout << "[FILES] found " << entry->d_name << " looking to match " << to_string(matchLen) << " chars from " << match << endl;
+						//cout << "[FILES] found " << entry->d_name << " looking to match " << to_string(matchLen) << " chars from " << match << endl;
 					    if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
 							string searcher(entry->d_name);
-							string target = searcher.substr(4);
-							cout << "[CHUNKACK] found " << entry->d_name << endl;
+							string target = searcher.substr(4); //get rid of tmp for official keys
+							//cout << "[CHUNKACK] found " << entry->d_name << endl;
+
+							//TODO: add prefix here
 							Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + target + "::" + entry->d_name + "::" + to_string(-1) + "::" + to_string(-1) + "::" + target + "::" + "0");
-							cout << "[PUT] Got localfilename: " << entry->d_name << " with sdfsfilename: " << target << endl;
+
+							//cout << "[PUT] Got localfilename: " << entry->d_name << " with sdfsfilename: " << target << endl;
 							tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
 						}
 					}
@@ -1043,7 +1046,7 @@ void Node::handleTcpMessage()
 						// update fileList, client itself is one of the replicas
 						updateFileList(sdfsfilename, nodePosition);
 						fileSizes[sdfsfilename] = make_tuple(size, lines);
-						hashRing->debugHashRing();
+						//hashRing->debugHashRing();
 						int closestNode = hashRing->locateClosestNode(sdfsfilename);
 						int pred = hashRing->getPredecessor(closestNode);
 						int succ = hashRing->getSuccessor(closestNode);

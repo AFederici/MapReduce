@@ -63,11 +63,11 @@ void handlePipe(int file) {
 		std::string key(strtok(str, delim));
     	std::string val(strtok(NULL, delim));
 		string keyFile = "tmp-" + key;
-		string write = key + "," + val + "\n";
+		string write = key + "," + val;
 		tmp = fopen(keyFile.c_str(), "ab");
 		fwrite(write.c_str(),sizeof(char),write.size(),tmp);
 		fclose(tmp);
-		cout << "[PIPE] " << key << " to " << keyFile << endl;
+		//cout << "[PIPE] " << key << " to " << keyFile << endl;
 	}
     fclose (stream);
   }

@@ -233,9 +233,9 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				localfilename = sdfsfilename+"_"+to_string(fileTimestamp);
 				if (overwriteFilename.compare("") != 0) {
 					localfilename = overwriteFilename;
-					cout << "it's GET with filename " << overwriteFilename << endl;
+					//cout << "it's GET with filename " << overwriteFilename << endl;
 				}
-				cout << "backup filename " << localfilename << endl;
+				//cout << "backup filename " << localfilename << endl;
 			} else {
 				//exec, read, start, tmp, prefix
 				localfilename = fields[3]; //tempfile to read from
@@ -263,11 +263,11 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 			fclose(fp);
 
-			FileObject f(localfilename);
-			if(incomingChecksum.compare(f.checksum) != 0 && incomingChecksum.compare("") != 0){
-				cout << "[ERROR] FILE CORRUPTED" << endl;
+			//FileObject f(localfilename);
+			//if(incomingChecksum.compare(f.checksum) != 0 && incomingChecksum.compare("") != 0){
+			//	cout << "[ERROR] FILE CORRUPTED" << endl;
 				// TODO: Handel file corruption here
-			} else {
+			//} else {
 				if (start != -1){
 					//IP, exec, start, temp, actual file
 					Messages putack(CHUNKACK, returnIP + "::" + sdfsfilename + "::" + to_string(start) + "::" + localfilename + "::" + remoteLocalname);
@@ -276,7 +276,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 					Messages putack(PUTACK, returnIP + "::" + sdfsfilename + "::" + localfilename+"::"+remoteLocalname);
 					regMessages.push(putack.toString());
 				}
-			}
+			//}
 			break;
 		}
 		case DNSANS:
