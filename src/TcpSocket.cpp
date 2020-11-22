@@ -279,7 +279,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			//FileObject f(localfilename);
 			//if(incomingChecksum.compare(f.checksum) != 0 && incomingChecksum.compare("") != 0){
 			//	cout << "[ERROR] FILE CORRUPTED" << endl;
-				// TODO: Handel file corruption here
+				// how to deal with?
 			//} else {
 				if (start != -1){
 					//IP, exec, start, temp, actual file

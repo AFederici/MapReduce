@@ -1,7 +1,5 @@
 #include "../inc/Node.h"
 
-//TODO, single file for each key, and ussing an append to each replica of it?
-//keep a local map, if you find a new key, just let the master know about it and hold off on results in buffer until it exists
 Node::Node(){
 	udpServent = new UdpSocket();
 	tcpServent = new TcpSocket();
@@ -517,7 +515,6 @@ void Node::handleUdpMessage(string message){
 			break;
 		}
 		case JOINREJECT: {
-			// TODO: the node should leave
 			cout << "[JOINREJECT] There is a collision, and I have to leave..." << endl;
 			this->activeRunning = false;
 			pthread_exit(NULL);
@@ -815,8 +812,6 @@ void Node::handleTcpMessage()
 			case JUICESTART: {
 				if (mapleProcessing.size()) {tcpServent->regMessages.push(msg.toString()); break;}
 				//TODO
-
-				//cleanup tmp-prefix-* regardless as those were real temp files
 			}
 			case MAPLESTART: {
 				//leader only function
@@ -932,6 +927,15 @@ void Node::handleTcpMessage()
 							string keyFile = inMsg[5] + "-" + tempVec[tempVec.size()-1];
 							cout << "[CHUNKACK] transform from: " << entry->d_name << " to " << keyFile << endl;
 
+							/* TODO
+							* Need to change up how key comnbining works.
+							* 1) Master keeps track of the status of processing node assignments
+							* 2) on failure, instead of partial re-mapping, the entire node's assignments get redone
+							* 3) No longer merge temp files after assignment, instead just send the MAPLEACK
+							* 4) When the master marks all of a nodes assignments as done, send a message telling it to start merging
+							* 4b) may need to modify from PUT to a dedicated merge message
+							* 5) on success, notify the master and only then can the master remove the worker node from map of remaining tasks
+							*/
 							Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + keyFile + "::" + entry->d_name + "::" + to_string(-1) + "::" + to_string(-1) + "::" + keyFile + "::" + "0");
 
 							//cout << "[PUT] Got localfilename: " << entry->d_name << " with sdfsfilename: " << target << endl;
