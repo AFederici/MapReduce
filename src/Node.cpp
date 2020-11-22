@@ -931,7 +931,7 @@ void Node::handleTcpMessage()
 							if (tempVec.size() != 2) continue; //temp keys in form tmp-key
 							string keyFile = inMsg[5] + "-" + tempVec[tempVec.size()-1];
 							cout << "[CHUNKACK] transform from: " << entry->d_name << " to " << keyFile << endl;
-							//TODO: add prefix here
+
 							Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + keyFile + "::" + entry->d_name + "::" + to_string(-1) + "::" + to_string(-1) + "::" + keyFile + "::" + "0");
 
 							//cout << "[PUT] Got localfilename: " << entry->d_name << " with sdfsfilename: " << target << endl;
