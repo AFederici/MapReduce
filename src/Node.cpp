@@ -928,7 +928,7 @@ void Node::handleTcpMessage()
 							cout << "[CHUNKACK] transform from: " << entry->d_name << " to " << keyFile << endl;
 
 							/* TODO
-							* Need to change up how key comnbining works.
+							* Need to change up how key comnbining works (also need master to keep track of all keys it sees for the next phase)
 							* 1) Master keeps track of the status of processing node assignments
 							* 2) on failure, instead of partial re-mapping, the entire node's assignments get redone
 							* 3) No longer merge temp files after assignment, instead just send the MAPLEACK
