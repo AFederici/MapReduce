@@ -144,7 +144,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 		lineCounter++;
         if (lineCounter < start) continue;
 		if (lineCounter >= end) break;
-		numbytes += str.size();
+		numbytes += (str.size() + 1);
     }
 	file.clear();  // clear fail and eof bits
 	file.seekg(0); // back to the start!
@@ -163,6 +163,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
         if (lineCounter < start) continue;
 		else if (lineCounter == start) cout << "[CHUNK] starting to send at line " << to_string(lineCounter) << endl;
 		if (lineCounter >= end) { cout << "[CHUNK] Counter at " << to_string(lineCounter) << " end: " << to_string(end) << endl; break; }
+		str += '\n';
 		if (send(sockfd, str.c_str(), strlen(str.c_str()), 0) == -1) {
 			perror("send");
 		}

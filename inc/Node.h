@@ -40,7 +40,7 @@ using namespace std;
 #define N_b 5 // how many nodes GOSSIP want to use
 #define T_election 15 // in T_period
 #define T_switch 3 // in seconds
-#define T_maples 80 // lines to process
+#define T_maples 2 // lines to process
 //
 
 void *runUdpServer(void *udpSocket);

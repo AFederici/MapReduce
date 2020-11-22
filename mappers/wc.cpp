@@ -13,6 +13,6 @@ int main(int argc, char **argv) {
         }
         std::transform(str.begin(), str.end(), str.begin(), ::tolower);
         std::vector<std::string> temp = splitString(str, delim);
-        for (auto &e : temp) { if (e.size()) std::cout << e << "," << "1" << std::endl; }
+        for (auto &e : temp) { if (e.size() && e.compare(" ") && e.compare("\n")) std::cout << e << "," << "1" << std::endl; }
     }
 }
