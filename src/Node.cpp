@@ -321,7 +321,7 @@ int Node::listenToHeartbeats() {
 	// 1. deepcopy and handle queue
 	queue<string> qCopy(udpServent->qMessages);
 	udpServent->qMessages = queue<string>();
-	int size = qCopy.size();
+	size_t size = qCopy.size();
 	//cout << "Got " << size << " messages in the queue" << endl;
 	//cout << "checking queue size " << nodeOwn->udpServent->qMessages.size() << endl;
 	for (size_t j = 0; j < size; j++) {
@@ -879,9 +879,15 @@ void Node::handleTcpMessage()
 			}
 
 			case CHUNK: {
+				//processor, exec, file, start, prefix
+				string sendMsg = msg.payload;
 				cout << "[CHUNK] " << "we will put sdfsfilename: " << inMsg[2] << " from chunk: " << inMsg[3] << " to node " << inMsg[0] << endl;
+				if (localFilelist.find(inMsg[2]) != localFilelist.end()){
+					sendMsg = inMsg[0] + "::" + inMsg[1] + "::" + localFilelist[inMsg[2]] + "::" + inMsg[3] + "::" + inMsg[4];
+					cout << "[CHUNK] CORRECTION -> " << localFilelist[inMsg[2]] << endl;
+				}
 				int end = stoi(inMsg[3]) + T_maples;
-				string sendMsg = msg.payload + "::" + to_string(end);
+				sendMsg += ("::" + to_string(end));
 				this->tcpServent->pendSendMessages.push(sendMsg);
 				break;
 			}
