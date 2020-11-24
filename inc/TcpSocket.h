@@ -51,15 +51,19 @@ public:
 	queue<string> regMessages;//other messages added here
 	queue<string> pendSendMessages;//keeps messages for the tcp client to send
 	queue<string> mapleMessages; //keeps track of sending
+	queue<string> mergeMessages; //keeps track of sending
 
 	void bindServer(string port);
-	void sendFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename, string overwrite);
+	void sendFile(string ip, string port, FILE * fp, int size);
+	void putFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename);
+	void putDirectory(string ip, string port); //put everything in tmp directory
 	void sendLines(string ip, string port, string execFile, string localFile, string prefix, int start, int end);
 	void sendMessage(string ip, string port, string message);
 	int messageHandler(int sockfd, string payloadMessage, string returnID);
 	int createConnection(string ip, string port);
 	TcpSocket();
 private:
-	string getFileMetadata(int size, string checksum, string sdfsfilename, string localfilename, string remoteLocalfilename, string overwrite);
+	string getFileMetadata(int size, string checksum, string sdfsfilename, string localfilename, string remoteLocalfilename);
+	string getDirMetadata();
 };
 #endif //TCPSOCKET_H

@@ -16,7 +16,7 @@
 using namespace std;
 
 string getMostRecentFile(string readfile);
-void cleanupTmpFiles();
+void cleanupTmpFiles(string match);
 
 class FileObject {
 public:

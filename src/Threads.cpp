@@ -24,7 +24,7 @@ void *runTcpSender(void *tcpSocket)
 		while (!tcp->mapleMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->mapleMessages.front(), "::");
 			string removeSender = tcp->mapleMessages.front().substr(msgSplit[0].size() + 2);
-			cout << "[TEST] " << removeSender << endl;
+			//cout << "[TEST] " << removeSender << endl;
 			Messages msg(CHUNK, removeSender);
 			//processor, exec, file, start, prefix
 			tcp->sendMessage(msgSplit[0], TCPPORT, msg.toString());
@@ -32,9 +32,8 @@ void *runTcpSender(void *tcpSocket)
 		}
 		while (!tcp->pendSendMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->pendSendMessages.front(), "::");
-			if (msgSplit.size() >= 5) {
-				string nodeIP = msgSplit[0], localfilename = msgSplit[1], overwrite = msgSplit[4];
-				string sdfsfilename = msgSplit[2], remoteLocalfilename = msgSplit[3];
+			if (msgSplit.size() >= 4) {
+				string nodeIP = msgSplit[0], localfilename = msgSplit[1], sdfsfilename = msgSplit[2], remoteLocalfilename = msgSplit[3];
 				cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename;
 				cout << ", sdfsfilename " << sdfsfilename << ", remoteLocalfilename " << remoteLocalfilename << endl;
 				if (msgSplit.size() == 6){
@@ -44,9 +43,14 @@ void *runTcpSender(void *tcpSocket)
 					cout << "[CHUNK] sending : " << sdfsfilename << " from " << msgSplit[3] << " to " << msgSplit[5] << endl;
 					tcp->sendLines(nodeIP, TCPPORT, localfilename, sdfsfilename, msgSplit[4], start, end); //exec, file, start, end
 				}
-				else tcp->sendFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename, overwrite);
+				else tcp->putFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename);
 			}
 			tcp->pendSendMessages.pop();
+		}
+		while (!tcp->mergeMessages.empty()) {
+			vector<string> msgSplit = splitString(tcp->mergeMessages.front(), "::");
+			tcp->putDirectory(msgSplit[0], msgSplit[1]);
+			tcp->mergeMessages.pop();
 		}
 	}
 	pthread_exit(NULL);

@@ -28,20 +28,20 @@ string getMostRecentFile(string readfile){
     DIR *dp = nullptr;
     int matchLen = readfile.size();
     vector<string> fileVersions;
-    if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl; return ""; }
+    if ((dp = opendir(".")) == nullptr) { cout << "temp directory error " << endl; closedir(dp); return ""; }
     while ((entry = readdir(dp))){
         if (strncmp(entry->d_name, readfile.c_str(), matchLen) == 0){
             fileVersions.push_back(entry->d_name);
         }
     }
     sort(fileVersions.begin(), fileVersions.end());
+    closedir(dp);
     return fileVersions[fileVersions.size()-1];
 }
 
-void cleanupTmpFiles(){
+void cleanupTmpFiles(string match){
     struct dirent *entry = nullptr;
     DIR *dp = nullptr;
-    string match = "tmp-";
     int matchLen = match.size();
     if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl;}
     while ((entry = readdir(dp))){
@@ -49,4 +49,5 @@ void cleanupTmpFiles(){
             remove(entry->d_name);
         }
     }
+    closedir(dp);
 }

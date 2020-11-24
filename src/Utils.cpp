@@ -54,7 +54,7 @@ void handlePipe(int file) {
 	size_t bufSize = 1024;
 	cout << "[PIPE] sleeping for data. " << endl;
 	sleep(5);
-    FILE *stream = fdopen(file, "r"); FILE *tmp;
+    FILE *stream = fdopen(file, "rb"); FILE *tmp;
     char str[bufSize];
 	const char * delim = ",";
 	int lines = 0;

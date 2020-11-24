@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     while (std::getline(file, str))
     {
         for (size_t i = 0; i < str.size(); i++) {
-            if (str[i] == '.' || str[i] == ',' || str[i] == '?' || str[i] == ';' || str[i] == '!') str[i] = ' ';
+            if (str[i] == '.' || str[i] == ',' || str[i] == '?' || str[i] == ';' || str[i] == '!' || str[i] == '-') str[i] = ' ';
         }
         std::transform(str.begin(), str.end(), str.begin(), ::tolower);
         std::vector<std::string> temp = splitString(str, delim);

@@ -85,39 +85,89 @@ void TcpSocket::bindServer(string port)
 }
 
 string TcpSocket::getFileMetadata(int size, string checksum,
-	string sdfsfilename, string localfilename, string remoteLocalfilename, string overwrite)
+	string sdfsfilename, string localfilename, string remoteLocalfilename)
 {
 	// format: size,checksum,sdfsfilename
-	string msg = to_string(size) + "," + checksum + "," + sdfsfilename+","+localfilename+","+remoteLocalfilename+","+overwrite;
+	string msg = to_string(size) + "," + checksum + "," + sdfsfilename+","+localfilename+","+remoteLocalfilename;
 	return msg;
 }
 
-void TcpSocket::sendFile(string ip, string port,
-	string localfilename, string sdfsfilename, string remoteLocalfilename, string overwrite)
+string TcpSocket::getDirMetadata()
 {
-	int numbytes, sockfd;
-	char buf[DEFAULT_TCP_BLKSIZE];
-	FILE *fp;
-	int size = 0, sendSize = 0;
-	bzero(buf, sizeof(buf));
-	if ((sockfd = createConnection(ip, port)) == -1) return;
-	fp = fopen(localfilename.c_str(), "rb");
+	struct dirent *entry = nullptr;
+    DIR *dp = nullptr;
+	FILE * fp;
+    string match = "tmp-";
+    int matchLen = match.size();
+	vector<string> split;
+	int size = 0;
+	string msg;
+    if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl;}
+    while ((entry = readdir(dp))){
+        if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
+			split.clear();
+            split = splitString(entry->d_name, "-");
+			if (split.size() > 2) continue;
+			fp = fopen(entry->d_name, "rb");
+			if (fp == NULL) {
+				printf("Could not open file to send.");
+				continue;
+			}
+			fseek(fp, 0, SEEK_END);
+			size = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+			if (msg.size()) msg += ",";
+			msg += split[1];
+			msg += to_string(size);
+			fclose(fp);
+        }
+    }
+	closedir(dp);
+	return msg;
+}
+
+void TcpSocket::putDirectory(string ip, string port) {
+	string toSend = getDirMetadata();
+	if (!toSend.size()) return;
+	Messages msg(MERGE, toSend);
+	sendMessage(ip, port, msg.toString());
+	vector<string> toProcess = splitString(toSend, ",");
+	FILE * fp;
+	int index = 0;
+	while (index < toProcess.size() - 1){
+		fp = fopen(toProcess[index].c_str(), "rb");
+		if (fp == NULL) {
+			printf("Could not open file to send.");
+			continue;
+		}
+		sendFile(ip, port, fp, stoi(toProcess[index+1]));
+		fclose(fp);
+		index += 2;
+	}
+}
+
+
+void TcpSocket::putFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename){
+	FILE *fp = fopen(localfilename.c_str(), "rb");
 	if (fp == NULL) {
 		printf("Could not open file to send.");
 		return;
 	}
 	fseek(fp, 0, SEEK_END);
-	size = ftell(fp);
+	int size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
-
-	// send bytes and filename first
 	FileObject f(localfilename);
-	Messages msg(PUT, getFileMetadata(size, f.checksum, sdfsfilename, localfilename, remoteLocalfilename, overwrite));
-	string payload = msg.toString();
-	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
-		perror("send");
-	}
+	Messages msg(PUT, getFileMetadata(size, f.checksum, sdfsfilename, localfilename, remoteLocalfilename));
+	sendMessage(ip, port, msg.toString());
+	sendFile(ip, port, fp, size);
+}
+
+void TcpSocket::sendFile(string ip, string port, FILE * fp, int size) {
 	sleep(1);
+	int numbytes, sockfd, sendSize;
+	if ((sockfd = createConnection(ip, port)) == -1) return;
+	char buf[DEFAULT_TCP_BLKSIZE];
+	bzero(buf, sizeof(buf));
 	while (!feof(fp) && size > 0) {
 		sendSize = (size < DEFAULT_TCP_BLKSIZE) ? size : DEFAULT_TCP_BLKSIZE;
 		bzero(buf, sizeof(buf));
@@ -214,7 +264,8 @@ int TcpSocket::createConnection(string ip, string port){
 
 int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP){
 	char buf[DEFAULT_TCP_BLKSIZE];
-	int numbytes = 0;
+	int numbytes = 0, filesize = 0, byteReceived = 0;
+	FILE *fp;
 	Messages msg(payloadMessage);
 	switch (msg.type) {
 		case ELECTION:
@@ -222,22 +273,45 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			qMessages.push(payloadMessage);
 			break;
 		}
+		case MERGE: {
+			vector<string> filesAndSizes = splitString(msg.payload, ",");
+			int index = 0;
+			int fail = 0;
+			while (index < filesAndSizes.size() - 1){
+				string filename = "tmp-" + returnIP + "-" + filesAndSizes[index];
+				filesize = stoi(filesAndSizes[index+1]);
+				numbytes = 0;
+				byteReceived = 0;
+				fp = fopen(filename.c_str(), "wb");
+				bzero(buf, sizeof(buf));
+				while ((numbytes=recv(sockfd, buf, DEFAULT_TCP_BLKSIZE, 0)) > 0) {
+					fwrite(buf, sizeof(char), numbytes, fp);
+					byteReceived += numbytes;
+					if (byteReceived >= filesize) {
+						break;
+					}
+					bzero(buf, sizeof(buf));
+				}
+				if (byteReceived < filesize) fail = 1;
+				cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
+				fclose(fp);
+				index += 2;
+			}
+			if (fail) { Messages ack(MERGEFAIL, returnIP + "::"); regMessages.push(ack.toString()); }
+			else { Messages ack(MERGECOMPLETE, returnIP + "::"); regMessages.push(ack.toString()); }
+			break;
+		}
 		case PUT: {
-			FILE *fp;
-			int filesize = 0, byteReceived = 0;
-			string mode = "wb";
-			string sdfsfilename = "", incomingChecksum = "", remoteLocalname = "", overwriteFilename = "", prefix = "", overwrite = "", localfilename = "";
+			string sdfsfilename = "", incomingChecksum = "", remoteLocalname = "", overwriteFilename = "", prefix = "", localfilename = "";
 			// format: size,checksum,sdfsfilename
 			vector<string> fields = splitString(msg.payload, ",");
 			int start = -1;
-			if (fields.size() == 6) {
+			if (fields.size() == 5) {
 				filesize = stoi(fields[0]);
 				incomingChecksum = fields[1];
 				sdfsfilename = fields[2];
 				remoteLocalname = fields[3];
 				overwriteFilename = fields[4];
-				overwrite = fields[5];
-				if ((stoi(overwrite)) == 0) mode = "ab";
 				cout << "[PUT] file is " << sdfsfilename << " with size " << filesize << " and checksum " << incomingChecksum << endl;
 				time_t fileTimestamp;
 				time(&fileTimestamp);
@@ -247,7 +321,8 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 					//cout << "it's GET with filename " << overwriteFilename << endl;
 				}
 				//cout << "backup filename " << localfilename << endl;
-			} else {
+			}
+			if (fields.size() == 6){
 				//size, exec, read, start, tmp, prefix
 				filesize = stoi(fields[0]);
 				localfilename = fields[4]; //tempfile to read from
@@ -257,13 +332,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				prefix = fields[5];
 				cout << "[PUT] bytes: " << filesize << " exec: " << sdfsfilename << ", actual: " << remoteLocalname << ", start: " << to_string(start) << ", temp: " << localfilename  << ", prefix: " << prefix << endl;
 			}
-			fp = fopen(localfilename.c_str(), mode.c_str());
-			if (fp == NULL) {
-				cout << "file error" << endl;
-				close(sockfd);
-				return 1;
-			}
-
+			fp = fopen(localfilename.c_str(), "wb");
 			bzero(buf, sizeof(buf));
 			while ((numbytes=recv(sockfd, buf, DEFAULT_TCP_BLKSIZE, 0)) > 0) {
 				fwrite(buf, sizeof(char), numbytes, fp);
@@ -305,6 +374,9 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case MAPLEACK:
 		case CHUNK:
 		case CHUNKACK:
+		case STARTMERGE:
+		case MERGECOMPLETE:
+		case MERGEFAIL:
 		case DNS:{
 			//cout << "["<< messageTypes[msg.type] << "] payloadMessage: " << payloadMessage << endl;
 			regMessages.push(payloadMessage); //handle from queue

@@ -5,13 +5,14 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <pthread.h>
 #include <time.h>
 #include <signal.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
-
+#include <fstream>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -83,7 +84,8 @@ public:
 	map<string, tuple<bool, bool, bool>> pendingRequestSent; //?
 
 	//master properties for MAPLEJUICE
-	map<string, vector<tuple<string, string, string>>> mapleProcessing; //ip -> [ (file, chunk_start, originIP) ]
+	map<string, vector<tuple<string, string>>> mapleProcessing; //ip -> [ (file, chunk_start) ]
+	map<string, set<tuple<string,string>>> workerTasks; //above is static, this removes tasks when done
 	map<string, tuple<long int, int>> fileSizes; //used so master can partition in the map phase tuple is (bytes, lines)
 	HashRing *mapleRing;
 	map<string, vector<tuple<string, string>>> mapleSending; //originIP -> (file, chunk_start);

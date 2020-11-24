@@ -118,7 +118,7 @@ void *runTcpClientTEST(void *tcpSocket)
 	// testing to send file
 	for (int i=0; i<2; i++) {
 		sleep(1);
-		tcp->sendFile("127.0.0.1", TCPPORT, "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3", "1");
+		tcp->putFile("127.0.0.1", TCPPORT, "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3", "file_example_MP3_700KB.mp3");
 	}
 	pthread_exit(NULL);
 }

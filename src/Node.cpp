@@ -178,7 +178,9 @@ int Node::failureDetection(){
 
 					auto vecCopy(mapleProcessing[get<0>(keyTuple)]);
 					mapleProcessing[get<0>(mapleNodes[0])] = vecCopy;
+					for (auto el : vecCopy) workerTasks[get<0>(mapleNodes[0])].insert(el);
 					mapleProcessing.erase(get<0>(keyTuple));
+					workerTasks.erase(get<0>(keyTuple));
 
 					for (auto &e : mapleSending[get<0>(keyTuple)]){
 						vector<int> temp = randItems(1, fileList[get<0>(e)]);
@@ -810,15 +812,16 @@ void Node::handleTcpMessage()
 		// cout << "Has " << msg.type << " with " << msg.payload << endl;
 		switch (msg.type) {
 			case JUICESTART: {
-				if (mapleProcessing.size()) {tcpServent->regMessages.push(msg.toString()); break;}
-				//TODO
+				if (workerTasks.size()) {tcpServent->regMessages.push(msg.toString()); break;}
+				//TODO JUICESTART
+				//tell all nodes they can delete tmp files.
 			}
 			case MAPLESTART: {
 				//leader only function
 				//currently running something, dont start a new phase
-				if (mapleProcessing.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
+				if (workerTasks.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
 				cout << "[MAPLE] Leader starting new Maple phase" << endl;
-				cleanupTmpFiles();
+				cleanupTmpFiles("tmp-");
 				if (inMsg.size() >= 4){
 					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
 					int workers = stoi(num_maples);
@@ -860,7 +863,8 @@ void Node::handleTcpMessage()
 							vector<int> temp = randItems(1, fileList[file]);
 							string sender = hashRing->getValue(temp[0]); //because files are part of sdfs anyone can be the sender
 							string processor = mapleRing->getValue(id); //processor is a maple worker
-							mapleProcessing[processor].push_back(make_tuple(file, to_string(start), sender));
+							mapleProcessing[processor].push_back(make_tuple(file, to_string(start)));
+							workerTasks[processor].insert(make_tuple(file, to_string(start)));
 							cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
 							mapleSending[sender].push_back(make_tuple(file, to_string(start)));
 							string maplemsg = sender + "::" + processor + "::" +mapleExe + "::" + s + "::" + sdfsPre;
@@ -896,7 +900,7 @@ void Node::handleTcpMessage()
 					int dataPipe[2];
 					if (pipe(dataPipe)){ fprintf (stderr, "Pipe failed.\n"); break; }
 					pid_t pid = fork();
-					if (pid){ //parent process, DONT need to waitpid because of signal handler set up
+					if (pid){
 					  close(dataPipe[1]);
 					  handlePipe(dataPipe[0]);
 					} else if (pid < 0) {
@@ -912,37 +916,6 @@ void Node::handleTcpMessage()
 					int status;
 					waitpid(pid, &status, 0);
 					close(dataPipe[0]);close(dataPipe[1]);
-					//go thorugh and process things from datapipe
-					//if processing success, send out TCP MAPLEACK
-					string match = "tmp-";
-					int matchLen = match.size();
-					struct dirent *entry = nullptr;
-					DIR *dp = nullptr;
-					if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << match << endl; break; }
-					while ((entry = readdir(dp))){
-						//cout << "[FILES] found " << entry->d_name << " looking to match " << to_string(matchLen) << " chars from " << match << endl;
-					    if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
-							vector<string> tempVec = splitString(entry->d_name, "-");
-							if (tempVec.size() != 2) continue; //temp keys in form tmp-key
-							string keyFile = inMsg[5] + "-" + tempVec[tempVec.size()-1];
-							cout << "[CHUNKACK] transform from: " << entry->d_name << " to " << keyFile << endl;
-
-							/* TODO
-							* Need to change up how key comnbining works (also need master to keep track of all keys it sees for the next phase)
-							* 1) Master keeps track of the status of processing node assignments
-							* 2) on failure, instead of partial re-mapping, the entire node's assignments get redone
-							* 3) No longer merge temp files after assignment, instead just send the MAPLEACK
-							* 4) When the master marks all of a nodes assignments as done, send a message telling it to start merging
-							* 4b) may need to modify from PUT to a dedicated merge message
-							* 5) on success, notify the master and only then can the master remove the worker node from map of remaining tasks
-							*/
-							Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + keyFile + "::" + entry->d_name + "::" + to_string(-1) + "::" + to_string(-1) + "::" + keyFile + "::" + "0");
-
-							//cout << "[PUT] Got localfilename: " << entry->d_name << " with sdfsfilename: " << target << endl;
-							tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
-						}
-					}
-					closedir(dp);
 					string ackStr = inMsg[0] + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
 					Messages ackMsg(MAPLEACK, ackStr);
 					tcpServent->sendMessage(leaderIP, TCPPORT, ackMsg.toString());
@@ -964,17 +937,65 @@ void Node::handleTcpMessage()
 			}
 
 			case MAPLEACK: {
-				vector<tuple<string,string,string>> temp;
-				for (auto &e : mapleProcessing[inMsg[0]]){
+				vector<tuple<string,string>> temp;
+				for (auto &e : workerTasks[inMsg[0]]){
 					if (get<0>(e).compare(inMsg[1]) == 0){
 						if (get<1>(e).compare(inMsg[2]) == 0){
-							continue;
+							temp.push_back(e);
 						}
 					}
-					temp.push_back(e);
 				}
-				if (temp.size()) mapleProcessing[inMsg[0]] = temp;
-				else mapleProcessing.erase(inMsg[0]);
+				for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
+				if (!workerTasks[inMsg[0]].size()) {
+					Messages outMsg(STARTMERGE, "");
+					this->tcpServent->sendMessage(inMsg[0], TCPPORT, outMsg.toString());
+				}
+				break;
+			}
+
+			case STARTMERGE: {
+				string sendMsg = hashRing->getValue(leaderPosition) + "::" + TCPPORT;
+				this->tcpServent->mergeMessages.push(sendMsg);
+			}
+
+			case MERGECOMPLETE: {
+				workerTasks.erase(inMsg[0]);
+				mapleProcessing.erase(inMsg[0]);
+				//actually merge files in
+				struct dirent *entry = nullptr;
+			    DIR *dp = nullptr;
+				string match = "tmp-" + inMsg[0] + "-";
+			    int matchLen = match.size();
+			    if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl;}
+				cout << "[MERGECOMPLETE] processing files matching " << match << " and replacing with prefix: " << sdfsPre << endl;
+			    while ((entry = readdir(dp))){
+			        if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
+			            string entryName(entry->d_name);
+						string mapleOutput = sdfsPre + "-" + entryName.substr(matchLen);
+						ofstream keyFile;
+						keyFile.open(mapleOutput, ios::app);
+						ifstream toMerge(entry->d_name);
+						if (!toMerge.is_open() || !keyFile.is_open()) {
+							cout << "bad file permissions for " << entry->d_name << " and/or " << mapleOutput << endl;
+							break;
+						}
+						keyFile << toMerge.rdbuf();
+						keyFile.close();
+			        }
+			    }
+
+				if (!mapleProcessing.size()) { //start replication of key files
+
+				}
+
+				break;
+			}
+
+			//because TCP if we get a fail, we know that the node failed
+			//so re-requesting the files to merge will be taken care of in failureDetection()
+			case MERGEFAIL: {
+				string tmpFiles = "tmp-" + inMsg[0] + "-";
+				cleanupTmpFiles(tmpFiles);
 				break;
 			}
 
@@ -1047,7 +1068,7 @@ void Node::handleTcpMessage()
 				if(isLeader){
 					// Check hashring, get positions and send out DNS ANS
 					isBlackout = true;
-					if(inMsg.size() >= 8){
+					if(inMsg.size() >= 7){
 						string inMsgIP = inMsg[0];
 						int nodePosition = stoi(inMsg[1]);
 						string sdfsfilename = inMsg[2];
@@ -1055,7 +1076,6 @@ void Node::handleTcpMessage()
 						long int size = stol(inMsg[4]);
 						int lines = stoi(inMsg[5]);
 						string overwriteFilename = inMsg[6];
-						string overwrite = inMsg[7];
 						//cout << "[DNS] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename;
 						//cout << ", localfilename: " << localfilename << ", pos: " << nodePosition << endl;
 						// update fileList, client itself is one of the replicas
@@ -1082,7 +1102,7 @@ void Node::handleTcpMessage()
 						pendingRequests[sdfsfilename] = tuple<int, int, int>(closestNode, pred, succ);
 						pendingRequestSent[sdfsfilename] = tuple<int, int, int>(true, false, false);
 						pendingSenderRequests[sdfsfilename] = tuple<string, string, string>(inMsgIP, "", "");
-						Messages outMsg(DNSANS, to_string(closestNode) + "::" + localfilename + "::" + sdfsfilename + "::" + overwriteFilename + "::" + overwrite);
+						Messages outMsg(DNSANS, to_string(closestNode) + "::" + localfilename + "::" + sdfsfilename + "::" + overwriteFilename);
 						this->tcpServent->sendMessage(inMsgIP, TCPPORT, outMsg.toString());
 					}
 				}
@@ -1091,14 +1111,14 @@ void Node::handleTcpMessage()
 			}
 			case DNSANS:{
 				// Read the answer and send a PUT msg to dest
-				if(inMsg.size() >= 5){
+				if(inMsg.size() >= 4){
 					int nodePosition = stoi(inMsg[0]);
 					// since we do not keep files in hashRing, the value itself is IPaddress, not NODE:IP_Address
 					string nodeIP = hashRing->getValue(nodePosition);
 					//cout << "nodeIP " << nodeIP << endl;
 					//cout << "[DNSANS] " << "we will put sdfsfilename: " << inMsg[2] << " to nodeIP: " << nodeIP;
 					//cout << " using localfilename: " << inMsg[1] << endl;
-					string sendMsg = nodeIP+"::"+inMsg[1]+"::"+inMsg[2]+"::"+inMsg[3]+"::"+inMsg[4];
+					string sendMsg = nodeIP+"::"+inMsg[1]+"::"+inMsg[2]+"::"+inMsg[3];
 					this->tcpServent->pendSendMessages.push(sendMsg);
 				}
 				break;
@@ -1113,7 +1133,7 @@ void Node::handleTcpMessage()
 					string localfilename = this->localFilelist[sdfsfilename];
 					cout << "[REREPLICATEGET] Got a request of sdfsfilename " << sdfsfilename << " to nodeIP " << nodeIP << endl;
 					cout << "[REREPLICATEGET] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
-					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::"+remoteLocalfilename+"::"+"1";
+					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::"+remoteLocalfilename;
 					this->tcpServent->pendSendMessages.push(sendMsg);
 				}
 				break;
@@ -1128,9 +1148,8 @@ void Node::handleTcpMessage()
 					string localfilename = this->localFilelist[sdfsfilename];
 					cout << "[REREPLICATE] Got a request of sdfsfilename " << sdfsfilename << " to nodeIP " << nodeIP << endl;
 					cout << "[REREPLICATE] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
-					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::"+"::"+"1";
+					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::";
 					this->tcpServent->pendSendMessages.push(sendMsg);
-					//this->tcpServent->sendFile(nodeIP, TCPPORT, localfilename, sdfsfilename, "");
 				}
 				break;
 			}

@@ -30,6 +30,10 @@ enum MessageType {
 	MAPLEACK,
 	CHUNK, //send to nodes so they have information about what kind of get request to send
 	CHUNKACK, //after append ack received, send this back to master to know when things are Done
+	MERGE,
+	STARTMERGE,
+	MERGECOMPLETE,
+	MERGEFAIL
 };
 
 enum PayloadType {

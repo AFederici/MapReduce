@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 				string line;
 				ifstream myfile(localfilename.c_str());
 				while (getline(myfile, line)) ++number_of_lines;
-				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::" + "::" + "1");
+				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::");
 				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
 				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {
