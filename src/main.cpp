@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 			if(joined) node->requestSwitchingMode();
 		} else if(cmd == "mode") {
 			cout << "In " << node->runningMode << " mode" << endl;
-		} else if(cmd == "exit"){
+		} else if(cmd == "quit"){
 			cout << "exiting..." << endl; break;
 		} else if (cmd == "put" && joined){ // MP2 op1
 			if(cmdLineInput.size() < 3){
@@ -172,6 +172,10 @@ int main(int argc, char *argv[])
 				cout << "[MAPLE] " << cmdLineInput[1] << " does not exist locally" << endl;
 				continue;
 			}
+			if (stoi(cmdLineInput[2]) < 3) {
+				cout << "[MAPLE] " << cmdLineInput[2] << " workers needs to be at least 3" << endl;
+				continue;
+			}
 			if (!node->isBlackout){
 				string msg = cmdLineInput[1] + "::" + cmdLineInput[2] + "::" + cmdLineInput[3] + "::" + cmdLineInput[4];
 				Messages outMsg(MAPLESTART, msg);
@@ -207,7 +211,7 @@ int main(int argc, char *argv[])
 			cout << "[member] print all membership list" << endl;
 			cout << "[switch] switch to other mode (All-to-All to Gossip, and vice versa)" << endl;
 			cout << "[mode] show in 0/1 [All-to-All/Gossip] modes" << endl;
-			cout << "[exit] terminate process" << endl;
+			cout << "[quit] terminate process" << endl;
 			cout << " === New since MP2 === " << endl;
 			cout << "[put] localfilename sdfsfilename" << endl;
 			cout << "[get] sdfsfilename localfilename" << endl;

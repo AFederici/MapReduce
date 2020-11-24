@@ -36,12 +36,12 @@ void *runTcpSender(void *tcpSocket)
 				string nodeIP = msgSplit[0], localfilename = msgSplit[1], sdfsfilename = msgSplit[2], remoteLocalfilename = msgSplit[3];
 				cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename;
 				cout << ", sdfsfilename " << sdfsfilename << ", remoteLocalfilename " << remoteLocalfilename << endl;
-				if (msgSplit.size() == 6){
+				if (msgSplit.size() == 5){
 					//processor, exec, file, start, prefix, end
 					int start = stoi(msgSplit[3]);
-					int end = stoi(msgSplit[5]);
-					cout << "[CHUNK] sending : " << sdfsfilename << " from " << msgSplit[3] << " to " << msgSplit[5] << endl;
-					tcp->sendLines(nodeIP, TCPPORT, localfilename, sdfsfilename, msgSplit[4], start, end); //exec, file, start, end
+					int end = stoi(msgSplit[4]);
+					cout << "[CHUNK] sending : " << sdfsfilename << " from " << msgSplit[3] << " to " << msgSplit[4] << endl;
+					tcp->sendLines(nodeIP, TCPPORT, localfilename, sdfsfilename, start, end); //exec, file, start, end
 				}
 				else tcp->putFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename);
 			}
