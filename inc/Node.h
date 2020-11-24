@@ -41,7 +41,7 @@ using namespace std;
 #define N_b 5 // how many nodes GOSSIP want to use
 #define T_election 15 // in T_period
 #define T_switch 3 // in seconds
-#define T_maples 2 // lines to process
+#define T_maples 2 // lines to process, 2 for testing, probably 100 for real
 //
 
 void *runUdpServer(void *udpSocket);
@@ -89,6 +89,7 @@ public:
 	map<string, tuple<long int, int>> fileSizes; //used so master can partition in the map phase tuple is (bytes, lines)
 	HashRing *mapleRing;
 	map<string, vector<tuple<string, string>>> mapleSending; //originIP -> (file, chunk_start);
+	vector<string> mapleKeys;
 	string mapleExe;
 	string sdfsPre;
 
@@ -124,6 +125,7 @@ public:
 	void electionMessageHandler(Messages messages); //process TCP ELECTION messages using ring leader election algo
 	void restartElection(); //reset leader info
 	void setUpLeader(string message, bool pending); //setup leader
+	void replicateKeys();
 private:
 	string populateMembershipMessage(); //membershipList to string based on mode type
 	string populateIntroducerMembershipMessage(); //entire membership list to string

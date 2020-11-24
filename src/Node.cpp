@@ -36,6 +36,8 @@ Node::Node(ModeType mode) : Node() { runningMode = mode; }
 void Node::startActive()
 {
 	membershipList.clear();
+	workerTasks.clear();
+	mapleProcessing.clear();
 	restartElection();
 	// inserting its own into the list
 	time(&startTimestamp);
@@ -786,6 +788,33 @@ vector<tuple<string,string, string>> Node::getRandomNodesToGossipTo()
     }
 }
 
+//dont need to go through the complications of
+void Node::replicateKeys(){
+	if(isLeader){
+		isBlackout = true;
+		for (auto &key : mapleKeys){
+			string file = sdfsPre + "-" + key;
+			updateFileList(file, hashRingPosition);
+			fileSizes[file] = make_tuple(-1, -1); //we don't care
+			int workers = mapleProcessing.size();
+			if (workers > 3) workers = 3; //only need to replicate to 3 places
+			int closest = mapleRing->locateClosestNode(file);
+			int pred = mapleRing->getPredecessor(closest);
+			int succ = mapleRing->getSuccessor(closest);
+			cout << "[MAPLEEND] replicating " << file << " to: " << mapleRing->getValue(closest);
+			cout << "," << mapleRing->getValue(pred) << "," << mapleRing->getValue(succ) << endl;
+			pendingRequests[file] = tuple<int, int, int>(closest, pred, succ);
+			pendingRequestSent[file] = tuple<int, int, int>(true, false, false);
+			pendingSenderRequests[file] = tuple<string, string, string>(nodeInformation.ip, "", "");
+			string sendMsg = mapleRing->getValue(closest)+"::"+file+"::"+file+"::"+file;
+			this->tcpServent->pendSendMessages.push(sendMsg);
+		}
+		cout << "[MAPLEKEYS]";
+		for (auto &k : mapleKeys) cout << "  " << k;
+		cout << endl;
+	}
+}
+
 void Node::handleTcpMessage()
 {
 	//Before we do anything here, we should have the leader check to see if the file list is consistent or not.
@@ -822,11 +851,14 @@ void Node::handleTcpMessage()
 				if (workerTasks.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
 				cout << "[MAPLE] Leader starting new Maple phase" << endl;
 				cleanupTmpFiles("tmp-");
+				mapleProcessing.clear(); workerTasks.clear(); mapleRing->clear(); mapleSending.clear(); mapleKeys.clear();
 				if (inMsg.size() >= 4){
 					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
 					int workers = stoi(num_maples);
-					if (hashRing->nodePositions.size() == 1){ cout << "[ERROR] Not enough nodes for Maple" << endl; break;}
-					if (workers > hashRing->nodePositions.size()-2) workers = hashRing->nodePositions.size()-2;
+					//3 workers and a master is a condition set for correct working of the program.
+					//This assumption is similarly made in other places based on the design specification of 3 simul fails
+					if (hashRing->nodePositions.size() <= 3){ cout << "[ERROR] Not enough nodes for Maple. Need 4 minimum (3 workers, 1 leader)" << endl; break;}
+					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
 					int total_lines = 0;
 					vector<tuple<string,int>> directory;
 					cout << "[DIRECTORY] " << sdfs_dir;
@@ -846,7 +878,8 @@ void Node::handleTcpMessage()
 					for (auto &e : mapleNodes) {
 						Member m(get<0>(e), get<1>(e));
 						mapleRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
-						includedDebug += get<0>(e) + ",";
+						if (includedDebug.size()) includedDebug += ",";
+						includedDebug += get<0>(e);
 					}
 					cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
 					int start = 0, id = 0;
@@ -960,7 +993,6 @@ void Node::handleTcpMessage()
 
 			case MERGECOMPLETE: {
 				workerTasks.erase(inMsg[0]);
-				mapleProcessing.erase(inMsg[0]);
 				//actually merge files in
 				struct dirent *entry = nullptr;
 			    DIR *dp = nullptr;
@@ -971,12 +1003,14 @@ void Node::handleTcpMessage()
 			    while ((entry = readdir(dp))){
 			        if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
 			            string entryName(entry->d_name);
-						string mapleOutput = sdfsPre + "-" + entryName.substr(matchLen);
+						mapleKeys.push_back(entryName.substr(matchLen));
+						string mapleOutput = sdfsPre + "-" + mapleKeys[mapleKeys.size()-1];
 						ofstream keyFile;
 						keyFile.open(mapleOutput, ios::app);
 						ifstream toMerge(entry->d_name);
 						if (!toMerge.is_open() || !keyFile.is_open()) {
 							cout << "bad file permissions for " << entry->d_name << " and/or " << mapleOutput << endl;
+							mapleKeys.clear();
 							break;
 						}
 						keyFile << toMerge.rdbuf();
@@ -984,10 +1018,7 @@ void Node::handleTcpMessage()
 			        }
 			    }
 
-				if (!mapleProcessing.size()) { //start replication of key files
-
-				}
-
+				if (!workerTasks.size()) { replicateKeys(); mapleProcessing.clear(); }
 				break;
 			}
 
