@@ -33,16 +33,15 @@ void *runTcpSender(void *tcpSocket)
 		while (!tcp->pendSendMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->pendSendMessages.front(), "::");
 			if (msgSplit.size() >= 4) {
-				string nodeIP = msgSplit[0], localfilename = msgSplit[1], sdfsfilename = msgSplit[2], remoteLocalfilename = msgSplit[3];
+				//IP, local, sdfs, remote
 				//cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename << ", sdfsfilename " << sdfsfilename << endl;
-				if (msgSplit.size() == 5){
-					//processor, exec, file, start, prefix, end
-					int start = stoi(msgSplit[3]);
-					int end = stoi(msgSplit[4]);
-					cout << "[CHUNK] sending : " << sdfsfilename << " from " << msgSplit[3] << " to " << msgSplit[4] << endl;
-					tcp->sendLines(nodeIP, TCPPORT, localfilename, sdfsfilename, start, end); //exec, file, start, end
-				}
-				else tcp->putFile(nodeIP, TCPPORT, localfilename, sdfsfilename, remoteLocalfilename);
+				tcp->putFile(msgSplit[0], TCPPORT, msgSplit[1], msgSplit[2], msgSplit[3]);
+			}
+			else if (msgSplit.size() == 6){
+				//processor, exec, sdfs, local, start, end
+				int start = stoi(msgSplit[4]);
+				int end = stoi(msgSplit[5]);
+				tcp->sendLines(msgSplit[0], TCPPORT, msgSplit[1], msgSplit[2], msgSplit[3], start, end);
 			}
 			tcp->pendSendMessages.pop();
 		}

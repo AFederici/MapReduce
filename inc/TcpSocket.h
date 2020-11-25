@@ -57,7 +57,7 @@ public:
 	void sendFile(string ip, string port, FILE * fp, int size);
 	void putFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename);
 	void putDirectory(string ip, string port); //put everything in tmp directory
-	void sendLines(string ip, string port, string execFile, string localFile, int start, int end);
+	void sendLines(string ip, string port, string execFile, string sdfsFile, string localFile, int start, int end);
 	void sendMessage(string ip, string port, string message);
 	int messageHandler(int sockfd, string payloadMessage, string returnID);
 	int createConnection(string ip, string port);

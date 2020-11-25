@@ -901,8 +901,8 @@ void Node::handleTcpMessage()
 							workerTasks[processor].insert(make_tuple(file, to_string(start)));
 							cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
 							mapleSending[sender].push_back(make_tuple(file, to_string(start)));
-							string maplemsg = sender + "::" + processor + "::" +mapleExe + "::" + s;
-							//sender, processor, exec, file, start, prefix
+							string maplemsg = sender + "::" + processor + "::" + mapleExe + "::" + s;
+							//sender, processor, exec, file, start
 							tcpServent->mapleMessages.push(maplemsg);
 							start = start + T_maples;
 						}
@@ -912,15 +912,15 @@ void Node::handleTcpMessage()
 			}
 
 			case CHUNK: {
-				//processor, exec, file, start, prefix
-				string sendMsg = msg.payload;
-				cout << "[CHUNK] " << "we will put sdfsfilename: " << inMsg[2] << " from chunk: " << inMsg[3] << " to node " << inMsg[0] << endl;
-				if (localFilelist.find(inMsg[2]) != localFilelist.end()){
-					sendMsg = inMsg[0] + "::" + inMsg[1] + "::" + localFilelist[inMsg[2]] + "::" + inMsg[3];
-					cout << "[CHUNK] CORRECTION -> " << localFilelist[inMsg[2]] << endl;
-				}
+				//processor, exec, sdfs, start
+				string sendMsg = inMsg[0] + "::" + inMsg[1] + "::" + inMsg[2] + "::";
+				string localname;
+				if (localFilelist.find(inMsg[2]) != localFilelist.end()) localname = localFilelist[inMsg[2]];
+				else localname = inMsg[2];
 				int end = stoi(inMsg[3]) + T_maples;
-				sendMsg += ("::" + to_string(end));
+				cout << "[CHUNK] sending sdfs/local: " << inMsg[2] << "/" << localname << " from " << inMsg[3] << " to " << to_string(end) << endl;
+				//processor, exec, sdfs, local, start, end
+				sendMsg += ("::" + localname + "::" + inMsg[3] + "::" + to_string(end));
 				this->tcpServent->pendSendMessages.push(sendMsg);
 				break;
 			}
