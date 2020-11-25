@@ -201,16 +201,17 @@ void TcpSocket::sendFile(int sockfd, FILE * fp, int size) {
 //exec, file, start, end
 void TcpSocket::sendLines(string ip, string port, string execFile, string sdfsFile, string localFile, int start, int end)
 {
-	int sockfd = -1, lineCounter = -1, numbytes = 0;
+	int sockfd = -1, lineCounter = -1, numbytes = 0, readLines = 0;
 	ifstream file(localFile);
     string str;
-    while (getline(file, str))
+    while (getline(file, str) && (lineCounter < end - 1))
     {
 		lineCounter++;
         if (lineCounter < start) continue;
-		if (lineCounter >= end) break;
 		numbytes += (str.size() + 1);
+		readLines++;
     }
+	cout << "[SENDLINES] " << to_string(readLines) << endl;
 	file.clear();  // clear fail and eof bits
 	file.seekg(0); // back to the start!
 	lineCounter = -1;
@@ -218,22 +219,18 @@ void TcpSocket::sendLines(string ip, string port, string execFile, string sdfsFi
 	string tempName = "tmp-"+to_string(start)+"-"+sdfsFile.substr(unDirectory[0].size()+1);
 	string toSend = to_string(numbytes) + "," + execFile + "," + localFile + "," + to_string(start) + "," + tempName + "," + sdfsFile;
 	Messages msg(PUT, toSend);
-	cout << "[CHUNK] message (ignore ::) " << msg.toString() << endl;
+	//cout << "[CHUNK] message (ignore ::) " << msg.toString() << endl;
 	string payload = msg.toString();
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");
 	}
 	sleep(1);
-    while (getline(file, str))
+    while (getline(file, str) && (lineCounter < end - 1))
     {
 		lineCounter++;
         if (lineCounter < start) continue;
-		else if (lineCounter == start) //cout << "[CHUNK] starting to send at line " << to_string(lineCounter) << endl;
-		if (lineCounter >= end) {
-			//cout << "[CHUNK] Counter at " << to_string(lineCounter) << " end: " << to_string(end) << endl;
-			break;
-		}
+		if (lineCounter == start) //cout << "[CHUNK] starting to send at line " << to_string(lineCounter) << endl;
 		str += '\n';
 		if (send(sockfd, str.c_str(), strlen(str.c_str()), 0) == -1) {
 			perror("send");
@@ -316,13 +313,15 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 				fp = fopen(filename.c_str(), "wb");
 				bzero(buf, sizeof(buf));
-				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && bytesLeft) {
+				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && (bytesLeft > 0)) {
 					fwrite(buf, sizeof(char), numbytes, fp);
 					byteReceived += numbytes;
 					bytesLeft -= numbytes;
 					bzero(buf, sizeof(buf));
+					buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 				}
 				cout << " | bytesReceived: " << byteReceived << endl;
+				sleep(1);
 				if (bytesLeft) fail = 1;
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);

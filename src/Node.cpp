@@ -852,7 +852,7 @@ void Node::handleTcpMessage()
 				//leader only function
 				//currently running something, dont start a new phase
 				if (workerTasks.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
-				cout << "[MAPLE] Leader starting new Maple phase" << endl;
+				//cout << "[MAPLE] Leader starting new Maple phase" << endl;
 				cleanupTmpFiles("tmp-");
 				mapleProcessing.clear(); workerTasks.clear(); mapleRing->clear(); mapleSending.clear(); mapleKeys.clear();
 				if (inMsg.size() >= 4){
@@ -874,7 +874,7 @@ void Node::handleTcpMessage()
 							total_lines += get<1>(e.second);
 						}
 					}
-					cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
+					//cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
 					vector<tuple<string,string,string>> aliveNodes;
 					for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
 					vector<tuple<string,string,string>> mapleNodes = randItems(workers, aliveNodes);
@@ -885,14 +885,14 @@ void Node::handleTcpMessage()
 						if (includedDebug.size()) includedDebug += " | ";
 						includedDebug += get<0>(e);
 					}
-					cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
+					//cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
 					int start = 0, id = 0;
 					string s;
 					for (auto &e: directory){
 						start = 0;
 						string file = get<0>(e);
 						int lines = get<1>(e);
-						cout << "[MAPLE] file: " << file << " - " << to_string(lines) << endl;
+						//cout << "[MAPLE] file: " << file << " - " << to_string(lines) << endl;
 						while (start < lines){
 							s = file + "::" + to_string(start);
 							id = mapleRing->locateClosestNode(s);
@@ -902,7 +902,7 @@ void Node::handleTcpMessage()
 							string processor = mapleRing->getValue(id); //processor is a maple worker
 							mapleProcessing[processor].push_back(make_tuple(file, to_string(start)));
 							workerTasks[processor].insert(make_tuple(file, to_string(start)));
-							cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
+							//cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
 							mapleSending[sender].push_back(make_tuple(file, to_string(start)));
 							string maplemsg = sender + "::" + processor + "::" + mapleExe + "::" + s;
 							//sender, processor, exec, file, start

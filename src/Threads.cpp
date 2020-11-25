@@ -24,7 +24,7 @@ void *runTcpSender(void *tcpSocket)
 		while (!tcp->mapleMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->mapleMessages.front(), "::");
 			string removeSender = tcp->mapleMessages.front().substr(msgSplit[0].size() + 2);
-			cout << "[TEST] " << removeSender << endl;
+			//cout << "[TEST] " << removeSender << endl;
 			Messages msg(CHUNK, removeSender);
 			//processor, exec, file, start, prefix
 			tcp->sendMessage(msgSplit[0], TCPPORT, msg.toString());
