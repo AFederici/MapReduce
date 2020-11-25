@@ -1226,29 +1226,29 @@ void Node::handleTcpMessage()
 						updateFileList(sdfsfilename, nodePosition);
 
 						vector<int> temp;
-						cout << "pendingRequests: ";
+						//cout << "pendingRequests: ";
 						if (get<0>(pendingRequests[sdfsfilename]) == nodePosition) {
 							closestNodeIP = hashRing->getValue(get<0>(pendingRequests[sdfsfilename]));
 							temp.push_back(-1);
 						} else {
 							temp.push_back(get<0>(pendingRequests[sdfsfilename]));
 						}
-						cout << temp[0] << " (sent: " << get<0>(pendingRequestSent[sdfsfilename]);
-						cout << ", from " << get<0>(pendingSenderRequests[sdfsfilename]) << "), ";
+						//cout << temp[0] << " (sent: " << get<0>(pendingRequestSent[sdfsfilename]);
+						//cout << ", from " << get<0>(pendingSenderRequests[sdfsfilename]) << "), ";
 						if (get<1>(pendingRequests[sdfsfilename]) == nodePosition) {
 							temp.push_back(-1);
 						} else {
 							temp.push_back(get<1>(pendingRequests[sdfsfilename]));
 						}
-						cout << temp[1] << " (sent: " << get<1>(pendingRequestSent[sdfsfilename]);
-						cout << ", from " << get<1>(pendingSenderRequests[sdfsfilename]) << "), ";
+						//cout << temp[1] << " (sent: " << get<1>(pendingRequestSent[sdfsfilename]);
+						//cout << ", from " << get<1>(pendingSenderRequests[sdfsfilename]) << "), ";
 						if (get<2>(pendingRequests[sdfsfilename]) == nodePosition) {
 							temp.push_back(-1);
 						} else {
 							temp.push_back(get<2>(pendingRequests[sdfsfilename]));
 						}
-						cout << temp[2] << " (sent:" << get<2>(pendingRequestSent[sdfsfilename]);
-						cout << ", from " << get<2>(pendingSenderRequests[sdfsfilename]) << ")" << endl;
+						//cout << temp[2] << " (sent:" << get<2>(pendingRequestSent[sdfsfilename]);
+						//cout << ", from " << get<2>(pendingSenderRequests[sdfsfilename]) << ")" << endl;
 						pendingRequests[sdfsfilename] = tuple<int, int, int>(temp[0], temp[1], temp[2]);
 
 						if(get<1>(pendingRequests[sdfsfilename]) == -1 && get<2>(pendingRequests[sdfsfilename])== -1){
