@@ -32,7 +32,7 @@ void *runTcpSender(void *tcpSocket)
 		}
 		while (!tcp->pendSendMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->pendSendMessages.front(), "::");
-			if (msgSplit.size() >= 4) {
+			if (msgSplit.size() == 4) {
 				//IP, local, sdfs, remote
 				tcp->putFile(msgSplit[0], TCPPORT, msgSplit[1], msgSplit[2], msgSplit[3]);
 			}
