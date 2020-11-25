@@ -879,7 +879,7 @@ void Node::handleTcpMessage()
 					for (auto &e : mapleNodes) {
 						Member m(get<0>(e), get<1>(e));
 						mapleRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
-						if (includedDebug.size()) includedDebug += ",";
+						if (includedDebug.size()) includedDebug += " | ";
 						includedDebug += get<0>(e);
 					}
 					cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;

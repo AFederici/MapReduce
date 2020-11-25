@@ -140,13 +140,13 @@ void TcpSocket::putDirectory(string ip, string port) {
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
 	}
-	sleep(1);
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
 			printf("Could not open file to send %s.", toProcess[index].c_str());
 			continue;
 		}
+		sleep(1);
 		sendFile(sockfd, fp, stoi(toProcess[index+1]));
 		fclose(fp);
 		index += 2;
@@ -304,10 +304,12 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				format.clear();
 				format = splitString(filesAndSizes[index], "-"); //cut the tmp off
 				string filename = "tmp-" + returnIP + "-" + format[1];
+				cout << "[MERGE] index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
 				byteReceived = 0;
 				bytesLeft = filesize;
+				cout << "[MERGE] Bytes left " << bytesLeft;
 				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 				fp = fopen(filename.c_str(), "wb");
 				bzero(buf, sizeof(buf));
@@ -317,6 +319,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 					bytesLeft -= numbytes;
 					bzero(buf, sizeof(buf));
 				}
+				cout << " | bytesReceived: " << byteReceived << endl;
 				if (bytesLeft) fail = 1;
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
