@@ -133,6 +133,7 @@ void TcpSocket::putDirectory(string ip, string port) {
 	if (!toSend.size()) return;
 	vector<string> toProcess = splitString(toSend, ",");
 	int dirSize = toProcess.size();
+	cout << "[PUTDIR] " << toSend << endl;
 	Messages msg(MERGE, toSend);
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
@@ -310,7 +311,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 					bzero(buf, sizeof(buf));
 				}
 				if (byteReceived < filesize) fail = 1;
-				cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
+				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
 				index += 2;
 			}

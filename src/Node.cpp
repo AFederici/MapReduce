@@ -987,18 +987,17 @@ void Node::handleTcpMessage()
 					}
 					cout << endl;
 					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
-					if (!workerTasks[inMsg[0]].size()) workerTasks.erase(inMsg[0]);
 					cout << "[WORKERS] " << workerTasks.size() << " remaining" << endl;
-					if (!workerTasks.size()) {
+					if (!workerTasks[inMsg[0]].size()) {
 						Messages outMsg(STARTMERGE, "");
-						this->tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
+						this->tcpServent->sendMessage(inMsg[0], TCPPORT, outMsg.toString());
 					}
 				}
 				break;
 			}
 
 			case STARTMERGE: {
-				cout << "[STARTMERGE] ........." << endl;
+				cout << "[STARTMERGE] from node " << nodeInformation.ip << endl;
 				string sendMsg = hashRing->getValue(leaderPosition) + "::" + TCPPORT;
 				this->tcpServent->mergeMessages.push(sendMsg);
 				break;
