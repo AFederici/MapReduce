@@ -117,7 +117,7 @@ string TcpSocket::getDirMetadata()
 			size = ftell(fp);
 			fseek(fp, 0, SEEK_SET);
 			if (msg.size()) msg += ",";
-			msg += split[1];
+			msg += entry->d_name;
 			msg += ",";
 			msg += to_string(size);
 			fclose(fp);
@@ -144,7 +144,7 @@ void TcpSocket::putDirectory(string ip, string port) {
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
-			printf("Could not open file to send.");
+			printf("Could not open file to send %s.", toProcess[index].c_str());
 			continue;
 		}
 		sendFile(sockfd, fp, stoi(toProcess[index+1]));
@@ -296,8 +296,11 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			int dirSize = filesAndSizes.size();
 			int index = 0;
 			int fail = 0;
+			vector<string> format;
 			while (index < dirSize - 1){
-				string filename = "tmp-" + returnIP + "-" + filesAndSizes[index];
+				format.clear();
+				format = splitString(filesAndSizes[index], "-"); //cut the tmp off
+				string filename = "tmp-" + returnIP + "-" + format[1];
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
 				byteReceived = 0;
