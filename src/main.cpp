@@ -1,5 +1,26 @@
 #include "../inc/Node.h"
 
+void put(string in1, string in2, Node * node){
+	string localfilename = in1;
+	string sdfsfilename = in2;
+	FILE * fp = fopen(localfilename.c_str(), "rb");
+	if (fp == NULL) {
+		cout << "[PUT] The file " << localfilename << " does not exist" << endl;
+		return;
+	}
+	fseek(fp, 0, SEEK_END);
+	long int size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	fclose(fp);
+	int number_of_lines = 0;
+	string line;
+	ifstream myfile(localfilename.c_str());
+	while (getline(myfile, line)) ++number_of_lines;
+	Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::");
+	cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
+	node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
+}
+
 int main(int argc, char *argv[])
 {
 	pthread_t threads[5];
@@ -89,24 +110,27 @@ int main(int argc, char *argv[])
 				continue;
 			}
 			if (!node->isBlackout) {
-				string localfilename = cmdLineInput[1];
-				string sdfsfilename = cmdLineInput[2];
-				FILE * fp = fopen(localfilename.c_str(), "rb");
-				if (fp == NULL) {
-					cout << "[PUT] The file " << localfilename << " does not exist" << endl;
-					continue;
+				put(cmdLineInput[1], cmdLineInput[2], node);
+			} else {
+				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
+			}
+		} else if (cmd == "putdir" && joined){ // MP2 op1
+			if(cmdLineInput.size() < 3){
+				cout << "USAGE: putdir localdir sdfsdir" << endl;
+				continue;
+			}
+			if (!node->isBlackout) {
+				string localdir = cmdLineInput[1];
+				string sdfsdir = cmdLineInput[2];
+				DIR *dp = nullptr;
+				struct dirent *entry = nullptr;
+			    if ((dp = opendir(localdir.c_str())) == nullptr) { cout << "bad directory: " << localdir << endl; continue;}
+			    while ((entry = readdir(dp))){
+					string arg1 = localdir + "/" + entry->d_name;
+					string arg2 = sdfsdir + "-" + entry->d_name;
+					put(arg1, arg2, node);
+					while (node->isBlackout) sleep(2);
 				}
-				fseek(fp, 0, SEEK_END);
-				long int size = ftell(fp);
-				fseek(fp, 0, SEEK_SET);
-				fclose(fp);
-				int number_of_lines = 0;
-				string line;
-				ifstream myfile(localfilename.c_str());
-				while (getline(myfile, line)) ++number_of_lines;
-				Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::");
-				cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
-				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
 			}
