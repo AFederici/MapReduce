@@ -187,9 +187,7 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 {
 	int sockfd = 0, lineCounter = -1, numbytes = 0;
 	if ((sockfd = createConnection(ip, port)) == -1) return;
-	//exec, read, start, tmp, prefix
-	vector<string> unDirectory = splitString(readfile, "-");
-	ifstream file(getMostRecentFile(readfile).c_str());
+	ifstream file(readfile);
     string str;
     while (getline(file, str))
     {
@@ -201,9 +199,12 @@ void TcpSocket::sendLines(string ip, string port, string execfile, string readfi
 	file.clear();  // clear fail and eof bits
 	file.seekg(0); // back to the start!
 	lineCounter = -1;
-	string toSend = to_string(numbytes) + "," + execfile + "," + readfile + "," + to_string(start) + "," + "tmp-"+to_string(start)+"-"+unDirectory[1] + ",";
+	vector<string> toSdfs = splitString(readfile, "_"); //get rid of timestamp
+	int offset = (toSdfs.size() <= 1) ? 0 : toSdfs[toSdfs.size()-1].size();
+	string tempName = "tmp-"+to_string(start)+"-"+readfile.substr(0,readfile.size()-offset);
+	string toSend = to_string(numbytes) + "," + execfile + "," + readfile + "," + to_string(start) + "," + tempName + ",";
 	Messages msg(PUT, toSend);
-	cout << "[CHUNK] " << messageTypes[msg.type] << " | " << msg.toString() << endl;
+	cout << "[CHUNK] message (ignore ::) " << msg.toString() << endl;
 	string payload = msg.toString();
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");

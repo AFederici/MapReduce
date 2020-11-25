@@ -942,7 +942,7 @@ void Node::handleTcpMessage()
 					} else { //child process
 					  close(dataPipe[0]);
 					  string execName = "./" + inMsg[1];
-					  cout << "[CHUNKACK] processing " << inMsg[3] << " with " << execName << endl;
+					  //cout << "[CHUNKACK] processing " << inMsg[3] << " with " << execName << endl;
 					  dup2(dataPipe[1], 1); //stdout -> write end of pipe
 					  int status = execl(execName.c_str(),execName.c_str(),inMsg[3].c_str(),NULL);
 					  if (status < 0) exit(status);
@@ -955,7 +955,7 @@ void Node::handleTcpMessage()
 					tcpServent->sendMessage(leaderIP, TCPPORT, ackMsg.toString());
 					break;
 				}
-				cout << "[CHUNKACK] leader confirming the chunk was received" << endl;
+				//cout << "[CHUNKACK] leader confirming the chunk was received" << endl;
 				vector<tuple<string,string>> temp;
 				for (auto &e : mapleSending[inMsg[0]]){
 					if (get<0>(e).compare(inMsg[4]) == 0){
@@ -971,18 +971,20 @@ void Node::handleTcpMessage()
 			}
 
 			case MAPLEACK: {
-				vector<tuple<string,string>> temp;
-				for (auto &e : workerTasks[inMsg[0]]){
-					if (get<0>(e).compare(inMsg[1]) == 0){
-						if (get<1>(e).compare(inMsg[2]) == 0){
-							temp.push_back(e);
+				if (isLeader){
+					vector<tuple<string,string>> temp;
+					for (auto &e : workerTasks[inMsg[0]]){
+						if (get<0>(e).compare(inMsg[1]) == 0){
+							if (get<1>(e).compare(inMsg[2]) == 0){
+								temp.push_back(e);
+							}
 						}
 					}
-				}
-				for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
-				if (!workerTasks[inMsg[0]].size()) {
-					Messages outMsg(STARTMERGE, "");
-					this->tcpServent->sendMessage(inMsg[0], TCPPORT, outMsg.toString());
+					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
+					if (!workerTasks[inMsg[0]].size()) {
+						Messages outMsg(STARTMERGE, "");
+						this->tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
+					}
 				}
 				break;
 			}
@@ -990,6 +992,7 @@ void Node::handleTcpMessage()
 			case STARTMERGE: {
 				string sendMsg = hashRing->getValue(leaderPosition) + "::" + TCPPORT;
 				this->tcpServent->mergeMessages.push(sendMsg);
+				break;
 			}
 
 			case MERGECOMPLETE: {

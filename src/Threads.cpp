@@ -34,8 +34,7 @@ void *runTcpSender(void *tcpSocket)
 			vector<string> msgSplit = splitString(tcp->pendSendMessages.front(), "::");
 			if (msgSplit.size() >= 4) {
 				string nodeIP = msgSplit[0], localfilename = msgSplit[1], sdfsfilename = msgSplit[2], remoteLocalfilename = msgSplit[3];
-				cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename;
-				cout << ", sdfsfilename " << sdfsfilename << ", remoteLocalfilename " << remoteLocalfilename << endl;
+				//cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename << ", sdfsfilename " << sdfsfilename << endl;
 				if (msgSplit.size() == 5){
 					//processor, exec, file, start, prefix, end
 					int start = stoi(msgSplit[3]);
