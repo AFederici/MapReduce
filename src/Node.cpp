@@ -178,9 +178,12 @@ int Node::failureDetection(){
 					}
 					mapleRing->removeNode(deletedNodePostion);
 
+					//if deleted from workerTasks its been fully processed and doesnt need to be re-scheduled
 					auto vecCopy(mapleProcessing[get<0>(keyTuple)]);
-					mapleProcessing[get<0>(mapleNodes[0])] = vecCopy;
-					for (auto el : vecCopy) workerTasks[get<0>(mapleNodes[0])].insert(el);
+					if (workerTasks.find(get<0>(keyTuple)) != workerTasks.end()){
+						mapleProcessing[get<0>(mapleNodes[0])] = vecCopy;
+						for (auto el : vecCopy) workerTasks[get<0>(mapleNodes[0])].insert(el);
+					}
 					mapleProcessing.erase(get<0>(keyTuple));
 					workerTasks.erase(get<0>(keyTuple));
 
@@ -918,7 +921,7 @@ void Node::handleTcpMessage()
 				if (localFilelist.find(inMsg[2]) != localFilelist.end()) localname = localFilelist[inMsg[2]];
 				else localname = inMsg[2];
 				int end = stoi(inMsg[3]) + T_maples;
-				cout << "[CHUNK] sending sdfs/local: " << inMsg[2] << "/" << localname << " from " << inMsg[3] << " to " << to_string(end) << endl;
+				//cout << "[CHUNK] sending sdfs/local: " << inMsg[2] << "/" << localname << " from " << inMsg[3] << " to " << to_string(end) << endl;
 				//processor, exec, sdfs, local, start, end
 				sendMsg += (localname + "::" + inMsg[3] + "::" + to_string(end));
 				this->tcpServent->pendSendMessages.push(sendMsg);
@@ -926,7 +929,7 @@ void Node::handleTcpMessage()
 			}
 
 			case CHUNKACK: {
-				cout << "[CHUNKACK] receiving the put worked!" << endl;
+				//cout << "[CHUNKACK] receiving the put worked!" << endl;
 				//IP, exec, start, temp, sdfs file
 				if (!isLeader) {
 					//forward to know that the file was put okay
@@ -975,8 +978,7 @@ void Node::handleTcpMessage()
 			case MAPLEACK: {
 				if (isLeader){
 					vector<tuple<string,string>> temp;
-					cout << "[MAPLEACK] " << inMsg[0] << " processed " << inMsg[1] << "," << inMsg[2] << endl;
-					cout << "[MAPLEACK] work remaing for node " << nodeInformation.ip << ": ";
+					cout << "[MAPLEACK] " << inMsg[0] << " processed " << inMsg[1] << "," << inMsg[2] << " | remaining: ";
 					for (auto &e : workerTasks[inMsg[0]]){
 						if (get<0>(e).compare(inMsg[1]) == 0){
 							if (get<1>(e).compare(inMsg[2]) == 0){
@@ -988,7 +990,6 @@ void Node::handleTcpMessage()
 					cout << endl;
 					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
 					if (!workerTasks[inMsg[0]].size()) {
-						workerTasks.erase(inMsg[0]);
 						Messages outMsg(STARTMERGE, "");
 						this->tcpServent->sendMessage(inMsg[0], TCPPORT, outMsg.toString());
 					}
