@@ -855,10 +855,11 @@ void Node::handleTcpMessage()
 				if (inMsg.size() >= 4){
 					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
 					int workers = stoi(num_maples);
+					int ringSize = hashRing->nodePositions.size();
 					//3 workers and a master is a condition set for correct working of the program.
 					//This assumption is similarly made in other places based on the design specification of 3 simul fails
-					if (hashRing->nodePositions.size() <= 3){ cout << "[ERROR] Not enough nodes for Maple. Need 4 minimum (3 workers, 1 leader)" << endl; break;}
-					if (workers > hashRing->nodePositions.size()-1) workers = hashRing->nodePositions.size()-1;
+					if (ringSize <= 3){ cout << "[ERROR] Not enough nodes for Maple. Need 4 minimum (3 workers, 1 leader)" << endl; break;}
+					if (workers > ringSize-1) workers = ringSize-1;
 					int total_lines = 0;
 					vector<tuple<string,int>> directory;
 					cout << "[DIRECTORY] " << sdfs_dir;
@@ -915,8 +916,8 @@ void Node::handleTcpMessage()
 				string sendMsg = msg.payload;
 				cout << "[CHUNK] " << "we will put sdfsfilename: " << inMsg[2] << " from chunk: " << inMsg[3] << " to node " << inMsg[0] << endl;
 				if (localFilelist.find(inMsg[2]) != localFilelist.end()){
-					sendMsg = inMsg[0] + "::" + inMsg[1] + "::" + inMsg[2] + "::" + inMsg[3];
-					//cout << "[CHUNK] CORRECTION -> " << localFilelist[inMsg[2]] << endl;
+					sendMsg = inMsg[0] + "::" + inMsg[1] + "::" + localFilelist[inMsg[2]] + "::" + inMsg[3];
+					cout << "[CHUNK] CORRECTION -> " << localFilelist[inMsg[2]] << endl;
 				}
 				int end = stoi(inMsg[3]) + T_maples;
 				sendMsg += ("::" + to_string(end));

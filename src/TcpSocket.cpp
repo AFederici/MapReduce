@@ -134,7 +134,8 @@ void TcpSocket::putDirectory(string ip, string port) {
 	vector<string> toProcess = splitString(toSend, ",");
 	FILE * fp;
 	int index = 0;
-	while (index < toProcess.size() - 1){
+	int dirSize = toProcess.size();
+	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
 			printf("Could not open file to send.");
@@ -276,9 +277,10 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		}
 		case MERGE: {
 			vector<string> filesAndSizes = splitString(msg.payload, ",");
+			int dirSize = filesAndSizes.size();
 			int index = 0;
 			int fail = 0;
-			while (index < filesAndSizes.size() - 1){
+			while (index < dirSize - 1){
 				string filename = "tmp-" + returnIP + "-" + filesAndSizes[index];
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
