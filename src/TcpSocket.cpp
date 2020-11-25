@@ -138,7 +138,7 @@ void TcpSocket::putDirectory(string ip, string port) {
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
 	}
-	wait(1);
+	sleep(1);
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
@@ -172,7 +172,7 @@ void TcpSocket::putFile(string ip, string port, string localfilename, string sdf
 		perror("send");
 	}
 	fp = fopen(localfilename.c_str(), "rb");
-	wait(1);
+	sleep(1);
 	sendFile(sockfd, fp, size);
 	fclose(fp);
 	close(sockfd);
