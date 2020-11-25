@@ -24,7 +24,7 @@ void *runTcpSender(void *tcpSocket)
 		while (!tcp->mapleMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->mapleMessages.front(), "::");
 			string removeSender = tcp->mapleMessages.front().substr(msgSplit[0].size() + 2);
-			//cout << "[TEST] " << removeSender << endl;
+			cout << "[TEST] " << removeSender << endl;
 			Messages msg(CHUNK, removeSender);
 			//processor, exec, file, start, prefix
 			tcp->sendMessage(msgSplit[0], TCPPORT, msg.toString());
@@ -34,7 +34,6 @@ void *runTcpSender(void *tcpSocket)
 			vector<string> msgSplit = splitString(tcp->pendSendMessages.front(), "::");
 			if (msgSplit.size() >= 4) {
 				//IP, local, sdfs, remote
-				//cout << "[DOSEND] nodeIP " << nodeIP << ", localfilename " << localfilename << ", sdfsfilename " << sdfsfilename << endl;
 				tcp->putFile(msgSplit[0], TCPPORT, msgSplit[1], msgSplit[2], msgSplit[3]);
 			}
 			else if (msgSplit.size() == 6){
