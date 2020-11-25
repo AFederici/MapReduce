@@ -920,7 +920,7 @@ void Node::handleTcpMessage()
 				int end = stoi(inMsg[3]) + T_maples;
 				cout << "[CHUNK] sending sdfs/local: " << inMsg[2] << "/" << localname << " from " << inMsg[3] << " to " << to_string(end) << endl;
 				//processor, exec, sdfs, local, start, end
-				sendMsg += ("::" + localname + "::" + inMsg[3] + "::" + to_string(end));
+				sendMsg += (localname + "::" + inMsg[3] + "::" + to_string(end));
 				this->tcpServent->pendSendMessages.push(sendMsg);
 				break;
 			}
