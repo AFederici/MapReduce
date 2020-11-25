@@ -931,6 +931,7 @@ void Node::handleTcpMessage()
 				if (!isLeader) {
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
+					sleep(1);
 					int dataPipe[2];
 					if (pipe(dataPipe)){ fprintf (stderr, "Pipe failed.\n"); break; }
 					pid_t pid = fork();
@@ -950,8 +951,9 @@ void Node::handleTcpMessage()
 					int status;
 					waitpid(pid, &status, 0);
 					close(dataPipe[0]);close(dataPipe[1]);
-					string ackStr = inMsg[0] + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
+					string ackStr = nodeInformation.ip + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
 					Messages ackMsg(MAPLEACK, ackStr);
+					sleep(1);
 					tcpServent->sendMessage(leaderIP, TCPPORT, ackMsg.toString());
 					break;
 				}
@@ -973,13 +975,16 @@ void Node::handleTcpMessage()
 			case MAPLEACK: {
 				if (isLeader){
 					vector<tuple<string,string>> temp;
+					cout << "[MAPLEACK] " << inMsg[0] << "still has to process: "
 					for (auto &e : workerTasks[inMsg[0]]){
 						if (get<0>(e).compare(inMsg[1]) == 0){
 							if (get<1>(e).compare(inMsg[2]) == 0){
 								temp.push_back(e);
 							}
 						}
+						else cout << "(" << get<0>(e) << "," << get<1>(e) << ") | ";
 					}
+					cout << endl;
 					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
 					if (!workerTasks[inMsg[0]].size()) {
 						Messages outMsg(STARTMERGE, "");
@@ -990,6 +995,7 @@ void Node::handleTcpMessage()
 			}
 
 			case STARTMERGE: {
+				cout << "[STARTMERGE] ........." << endl;
 				string sendMsg = hashRing->getValue(leaderPosition) + "::" + TCPPORT;
 				this->tcpServent->mergeMessages.push(sendMsg);
 				break;
@@ -1029,6 +1035,7 @@ void Node::handleTcpMessage()
 			//because TCP if we get a fail, we know that the node failed
 			//so re-requesting the files to merge will be taken care of in failureDetection()
 			case MERGEFAIL: {
+				cout << "[MERGEFAIL] !!!!!!!!!" << endl;
 				string tmpFiles = "tmp-" + inMsg[0] + "-";
 				cleanupTmpFiles(tmpFiles);
 				break;
