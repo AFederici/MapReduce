@@ -54,7 +54,7 @@ public:
 	queue<string> mergeMessages; //keeps track of sending
 
 	void bindServer(string port);
-	void sendFile(string ip, string port, FILE * fp, int size);
+	void sendFile(int socket, FILE * fp, int size);
 	void putFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename);
 	void putDirectory(string ip, string port); //put everything in tmp directory
 	void sendLines(string ip, string port, string execFile, string sdfsFile, string localFile, int start, int end);

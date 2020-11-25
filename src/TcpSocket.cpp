@@ -127,28 +127,34 @@ string TcpSocket::getDirMetadata()
 }
 
 void TcpSocket::putDirectory(string ip, string port) {
+	FILE * fp;
+	int sockfd = -1, index = 0;
 	string toSend = getDirMetadata();
 	if (!toSend.size()) return;
-	Messages msg(MERGE, toSend);
-	sendMessage(ip, port, msg.toString());
 	vector<string> toProcess = splitString(toSend, ",");
-	FILE * fp;
-	int index = 0;
 	int dirSize = toProcess.size();
+	Messages msg(MERGE, toSend);
+	if ((sockfd = createConnection(ip, port)) == -1) return;
+	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
+		perror("send");
+	}
+	wait(1);
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
 			printf("Could not open file to send.");
 			continue;
 		}
-		sendFile(ip, port, fp, stoi(toProcess[index+1]));
+		sendFile(sockfd, fp, stoi(toProcess[index+1]));
 		fclose(fp);
 		index += 2;
 	}
+	close(sockfd);
 }
 
 
 void TcpSocket::putFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename){
+	int sockfd = -1;
 	FILE *fp = fopen(localfilename.c_str(), "rb");
 	if (fp == NULL) {
 		printf("Could not open file to send.");
@@ -161,17 +167,20 @@ void TcpSocket::putFile(string ip, string port, string localfilename, string sdf
 	cout << "[DOSEND] to nodeIP " << ip << ", localfilename " << localfilename << ", sdfsfilename " << sdfsfilename << endl;
 	FileObject f(localfilename);
 	Messages msg(PUT, getFileMetadata(size, f.checksum, sdfsfilename, localfilename, remoteLocalfilename));
-	sendMessage(ip, port, msg.toString());
-	sleep(1);
+	if ((sockfd = createConnection(ip, port)) == -1) return;
+	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
+		perror("send");
+	}
 	fp = fopen(localfilename.c_str(), "rb");
-	sendFile(ip, port, fp, size);
+	wait(1);
+	sendFile(sockfd, fp, size);
 	fclose(fp);
+	close(sockfd);
 }
 
-void TcpSocket::sendFile(string ip, string port, FILE * fp, int size) {
-	int numbytes, sockfd, sendSize;
+void TcpSocket::sendFile(int sockfd, FILE * fp, int size) {
+	int numbytes, sendSize;
 	int startSize = size;
-	if ((sockfd = createConnection(ip, port)) == -1) return;
 	char buf[DEFAULT_TCP_BLKSIZE];
 	bzero(buf, sizeof(buf));
 	while (!feof(fp) && size > 0) {
@@ -184,15 +193,13 @@ void TcpSocket::sendFile(string ip, string port, FILE * fp, int size) {
 		}
 	}
 	int bytesSent = startSize - size;
-	cout << "[SENDFILE] sent: " << to_string(bytesSent);
-	close(sockfd);
+	cout << "[SENDFILE] sent: " << to_string(bytesSent) << endl;
 }
 
 //exec, file, start, end
 void TcpSocket::sendLines(string ip, string port, string execFile, string sdfsFile, string localFile, int start, int end)
 {
-	int sockfd = 0, lineCounter = -1, numbytes = 0;
-	if ((sockfd = createConnection(ip, port)) == -1) return;
+	int sockfd = -1, lineCounter = -1, numbytes = 0;
 	ifstream file(localFile);
     string str;
     while (getline(file, str))
@@ -211,6 +218,7 @@ void TcpSocket::sendLines(string ip, string port, string execFile, string sdfsFi
 	Messages msg(PUT, toSend);
 	cout << "[CHUNK] message (ignore ::) " << msg.toString() << endl;
 	string payload = msg.toString();
+	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, payload.c_str(), strlen(payload.c_str()), 0) == -1) {
 		perror("send");
 	}
