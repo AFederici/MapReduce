@@ -856,7 +856,8 @@ void Node::handleTcpMessage()
 				cleanupTmpFiles("tmp-");
 				mapleProcessing.clear(); workerTasks.clear(); mapleRing->clear(); mapleSending.clear(); mapleKeys.clear();
 				if (inMsg.size() >= 4){
-					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfsPre = inMsg[2], sdfs_dir = inMsg[3] + "-";
+					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfs_dir = inMsg[3] + "-";
+					sdfsPre = inMsg[2];
 					int workers = stoi(num_maples);
 					int ringSize = hashRing->nodePositions.size();
 					//3 workers and a master is a condition set for correct working of the program.

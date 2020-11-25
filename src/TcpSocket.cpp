@@ -299,6 +299,9 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			int fail = 0;
 			int bytesLeft = 0;
 			int buffersize = DEFAULT_TCP_BLKSIZE;
+			//char tmpbuf[DEFAULT_TCP_BLKSIZE];
+			//bzero(tmpbuf, sizeof(tmpbuf));
+			int tmpbufSize = 0;
 			vector<string> format;
 			while (index < dirSize - 1){
 				format.clear();
@@ -307,18 +310,24 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				cout << "[MERGE] index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
-				byteReceived = 0;
 				bytesLeft = filesize;
-				cout << "[MERGE] Bytes left " << bytesLeft;
+				buffersize = DEFAULT_TCP_BLKSIZE;
 				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 				fp = fopen(filename.c_str(), "wb");
 				bzero(buf, sizeof(buf));
-				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && (bytesLeft > 0)) {
-					fwrite(buf, sizeof(char), numbytes, fp);
-					byteReceived += numbytes;
+				//handle extra data
+				while (((numbytes=recv(sockfd, buf + tmpbufSize, buffersize - tmpbufSize, 0)) > 0) && (bytesLeft > 0)) {
 					bytesLeft -= numbytes;
-					bzero(buf, sizeof(buf));
+					if (bytesLeft >= 0) fwrite(buf, sizeof(char), numbytes, fp);
+					else {
+						//shouldnt even trigger if the bug fix works
+						cout << "too much sauce" << endl;
+						fwrite(buf, sizeof(char), numbytes + bytesLeft, fp);
+						//memcpy(tempbuf, buf + (numbytes + bytesLeft), -1 * bytesLeft);
+						tmpbufSize = -1 * bytesLeft;
+					}
 					buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
+					bzero(buf, sizeof(buf));
 				}
 				cout << " | bytesReceived: " << byteReceived << endl;
 				sleep(1);
