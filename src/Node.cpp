@@ -975,7 +975,7 @@ void Node::handleTcpMessage()
 			case MAPLEACK: {
 				if (isLeader){
 					vector<tuple<string,string>> temp;
-					cout << "[MAPLEACK] " << inMsg[0] << " processed " << inMsg[1] <"," << inMsg[2] << endl;
+					cout << "[MAPLEACK] " << inMsg[0] << " processed " << inMsg[1] <<"," << inMsg[2] << endl;
 					for (auto &e : workerTasks[inMsg[0]]){
 						if (get<0>(e).compare(inMsg[1]) == 0){
 							if (get<1>(e).compare(inMsg[2]) == 0){
