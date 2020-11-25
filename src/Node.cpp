@@ -987,8 +987,8 @@ void Node::handleTcpMessage()
 					}
 					cout << endl;
 					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
-					cout << "[WORKERS] " << workerTasks.size() << " remaining" << endl;
 					if (!workerTasks[inMsg[0]].size()) {
+						workerTasks.erase(inMsg[0]);
 						Messages outMsg(STARTMERGE, "");
 						this->tcpServent->sendMessage(inMsg[0], TCPPORT, outMsg.toString());
 					}
@@ -1004,7 +1004,9 @@ void Node::handleTcpMessage()
 			}
 
 			case MERGECOMPLETE: {
+				int oldSize = workerTasks.size();
 				workerTasks.erase(inMsg[0]);
+				cout << "[WORKERS] " << to_string(oldSize) << " -> " << to_string(workerTasks.size()) << " remaining" << endl;
 				//actually merge files in
 				struct dirent *entry = nullptr;
 			    DIR *dp = nullptr;

@@ -118,6 +118,7 @@ string TcpSocket::getDirMetadata()
 			fseek(fp, 0, SEEK_SET);
 			if (msg.size()) msg += ",";
 			msg += split[1];
+			msg += ",";
 			msg += to_string(size);
 			fclose(fp);
         }
