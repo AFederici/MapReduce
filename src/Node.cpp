@@ -1151,8 +1151,7 @@ void Node::handleTcpMessage()
 					// since we do not keep files in hashRing, the value itself is IPaddress, not NODE:IP_Address
 					string nodeIP = hashRing->getValue(nodePosition);
 					//cout << "nodeIP " << nodeIP << endl;
-					//cout << "[DNSANS] " << "we will put sdfsfilename: " << inMsg[2] << " to nodeIP: " << nodeIP;
-					//cout << " using localfilename: " << inMsg[1] << endl;
+					cout << "[DNSANS] " << "we will put sdfsfilename: " << inMsg[2] << " to nodeIP: " << nodeIP << " using localfilename: " << inMsg[1] << endl;
 					string sendMsg = nodeIP+"::"+inMsg[1]+"::"+inMsg[2]+"::"+inMsg[3];
 					this->tcpServent->pendSendMessages.push(sendMsg);
 				}

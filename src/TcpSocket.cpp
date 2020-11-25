@@ -157,10 +157,13 @@ void TcpSocket::putFile(string ip, string port, string localfilename, string sdf
 	fseek(fp, 0, SEEK_END);
 	int size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
+	fclose(fp);
+	fp = fopen(localfilename.c_str(), "rb");
 	FileObject f(localfilename);
 	Messages msg(PUT, getFileMetadata(size, f.checksum, sdfsfilename, localfilename, remoteLocalfilename));
 	sendMessage(ip, port, msg.toString());
 	sendFile(ip, port, fp, size);
+	fclose(fp);
 }
 
 void TcpSocket::sendFile(string ip, string port, FILE * fp, int size) {
@@ -178,7 +181,6 @@ void TcpSocket::sendFile(string ip, string port, FILE * fp, int size) {
 			perror("send");
 		}
 	}
-	fclose(fp);
 	close(sockfd);
 }
 
