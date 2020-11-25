@@ -134,7 +134,7 @@ void TcpSocket::putDirectory(string ip, string port) {
 	if (!toSend.size()) return;
 	vector<string> toProcess = splitString(toSend, ",");
 	int dirSize = toProcess.size();
-	cout << "[PUTDIR] " << toSend << endl;
+	cout << "[PUTDIR] " << toSend << " to " << ip << endl;
 	Messages msg(MERGE, toSend);
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
@@ -292,10 +292,13 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			break;
 		}
 		case MERGE: {
+			cout << "[MERGE] merging ..... ";
 			vector<string> filesAndSizes = splitString(msg.payload, ",");
 			int dirSize = filesAndSizes.size();
 			int index = 0;
 			int fail = 0;
+			int bytesLeft = 0;
+			int buffersize = DEFAULT_TCP_BLKSIZE;
 			vector<string> format;
 			while (index < dirSize - 1){
 				format.clear();
@@ -304,17 +307,17 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
 				byteReceived = 0;
+				bytesLeft = filesize;
+				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 				fp = fopen(filename.c_str(), "wb");
 				bzero(buf, sizeof(buf));
-				while ((numbytes=recv(sockfd, buf, DEFAULT_TCP_BLKSIZE, 0)) > 0) {
+				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && bytesLeft) {
 					fwrite(buf, sizeof(char), numbytes, fp);
 					byteReceived += numbytes;
-					if (byteReceived >= filesize) {
-						break;
-					}
+					bytesLeft -= numbytes;
 					bzero(buf, sizeof(buf));
 				}
-				if (byteReceived < filesize) fail = 1;
+				if (bytesLeft) fail = 1;
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
 				index += 2;

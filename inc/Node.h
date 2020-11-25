@@ -36,10 +36,10 @@ using namespace std;
 
 // --- parameters (stay tuned) ---
 #define T_period 300000 // in microseconds
-#define T_timeout 15 // in T_period
-#define T_cleanup 15 // in T_period
+#define T_timeout 20 // in T_period
+#define T_cleanup 20 // in T_period
 #define N_b 5 // how many nodes GOSSIP want to use
-#define T_election 15 // in T_period
+#define T_election 20 // in T_period
 #define T_switch 3 // in seconds
 #define T_maples 2 // lines to process, 2 for testing, probably 100 for real
 //

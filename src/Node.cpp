@@ -997,8 +997,8 @@ void Node::handleTcpMessage()
 			}
 
 			case STARTMERGE: {
-				cout << "[STARTMERGE] from node " << nodeInformation.ip << endl;
-				string sendMsg = hashRing->getValue(leaderPosition) + "::" + TCPPORT;
+				string sendMsg = leaderIP + "::" + TCPPORT;
+				cout << "[STARTMERGE] from node " << nodeInformation.ip << " to " << leaderIP << endl;
 				this->tcpServent->mergeMessages.push(sendMsg);
 				break;
 			}
@@ -1039,7 +1039,7 @@ void Node::handleTcpMessage()
 			//because TCP if we get a fail, we know that the node failed
 			//so re-requesting the files to merge will be taken care of in failureDetection()
 			case MERGEFAIL: {
-				cout << "[MERGEFAIL] !!!!!!!!!" << endl;
+				cout << "[MERGEFAIL] !!!!!!!!! at " << nodeInformation.ip << endl;
 				string tmpFiles = "tmp-" + inMsg[0] + "-";
 				cleanupTmpFiles(tmpFiles);
 				break;
