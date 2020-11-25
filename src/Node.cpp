@@ -987,7 +987,9 @@ void Node::handleTcpMessage()
 					}
 					cout << endl;
 					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
-					if (!workerTasks[inMsg[0]].size()) {
+					if (!workerTasks[inMsg[0]].size()) workerTasks.erase(inMsg[0]);
+					cout << "[WORKERS] " << workerTasks.size() << " remaining" << endl;
+					if (!workerTasks.size()) {
 						Messages outMsg(STARTMERGE, "");
 						this->tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
 					}
