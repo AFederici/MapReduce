@@ -927,7 +927,7 @@ void Node::handleTcpMessage()
 
 			case CHUNKACK: {
 				cout << "[CHUNKACK] receiving the put worked!" << endl;
-				//IP, exec, start, temp, actual file
+				//IP, exec, start, temp, sdfs file
 				if (!isLeader) {
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
@@ -975,14 +975,15 @@ void Node::handleTcpMessage()
 			case MAPLEACK: {
 				if (isLeader){
 					vector<tuple<string,string>> temp;
-					cout << "[MAPLEACK] " << inMsg[0] << " processed " << inMsg[1] <<"," << inMsg[2] << endl;
+					cout << "[MAPLEACK] " << inMsg[0] << " processed " << inMsg[1] << "," << inMsg[2] << endl;
+					cout << "[MAPLEACK] work remaing for node " << nodeInformation.ip << ": ";
 					for (auto &e : workerTasks[inMsg[0]]){
 						if (get<0>(e).compare(inMsg[1]) == 0){
 							if (get<1>(e).compare(inMsg[2]) == 0){
 								temp.push_back(e);
 							}
 						}
-						//else cout << "(" << get<0>(e) << "," << get<1>(e) << ") | ";
+						else cout << "(" << get<0>(e) << "," << get<1>(e) << ") | ";
 					}
 					cout << endl;
 					for (auto &e : temp) workerTasks[inMsg[0]].erase(e);
