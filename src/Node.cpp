@@ -921,7 +921,7 @@ void Node::handleTcpMessage()
 					tcpServent->regMessages.push(msg.toString()); //re-add JUICE to queue
 				} else{
 					string execName = "./" + inMsg[1];
-					if (runExecutable(execName, inMsg[0])) { cout << "[EXEC] ERROR" << endl; break;}
+					if (runExecutable(execName, inMsg[0]) < 0) { cout << "[EXEC] ERROR" << endl; break;}
 					vector<string> juicedFiles = splitString(tcpServent->getDirMetadata(), ",");
 					string leftToMerge = "";
 					int index = 0, range = juicedFiles.size()-1;
@@ -1066,7 +1066,7 @@ void Node::handleTcpMessage()
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
 					string execName = "./" + inMsg[1];
-					if (runExecutable(execName, inMsg[3])) { cout << "[EXEC] ERROR" << endl; break;}
+					if (runExecutable(execName, inMsg[3]) < 0) { cout << "[EXEC] ERROR" << endl; break;}
 					string ackStr = nodeInformation.ip + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
 
 					Messages ackMsg(MAPLEACK, ackStr);
