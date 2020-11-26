@@ -794,7 +794,6 @@ vector<tuple<string,string, string>> Node::getRandomNodesToGossipTo()
     }
 }
 
-//dont need to go through the complications of
 void Node::replicateKeys(){
 	if(isLeader){
 		isBlackout = true;
@@ -965,8 +964,10 @@ void Node::handleTcpMessage()
 					}
 					cout << "[JUICE] ------------ complete ---------- (besides replication and deletes lol)" << endl;
 					resetMapleJuice();
-					tcpServent->regMessages.push(maplejuiceQ.front());
-					maplejuiceQ.pop();
+					if (maplejuiceQ.size()){
+						tcpServent->regMessages.push(maplejuiceQ.front());
+						maplejuiceQ.pop();
+					}
 				}
 				break;
 			}
@@ -1152,8 +1153,10 @@ void Node::handleTcpMessage()
 					replicateKeys();
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
 					resetMapleJuice();
-					tcpServent->regMessages.push(maplejuiceQ.front());
-					maplejuiceQ.pop();
+					if (maplejuiceQ.size()){
+						tcpServent->regMessages.push(maplejuiceQ.front());
+						maplejuiceQ.pop();
+					}
 				}
 				break;
 			}
