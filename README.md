@@ -1,14 +1,10 @@
 # MP2 Simple Distributed File System
 
 ## Executing Instructions
- * Building Node
-```
-$ make all
-```
 
- * We are running All-to-All in MP2 (Note: Gossip-style is not tested)
+ * Setup Project
 ```
-$ ./Node 0
+$ cd ~ && rm -r -f MapReduce && git clone https://github.com/AFederici/MapReduce.git && cd MapReduce && make all && chmod 777 Wc && ./Node
 ```
 
  * Running time commands
@@ -20,7 +16,7 @@ $ [member] print all membership list
 $ [switch] switch to other mode (All-to-All to Gossip, and vice versa)
 $ [mode] show in 0/1 [All-to-All/Gossip] modes
 $ [exit] terminate process
-$ === New since MP2 === 
+$ === New since MP2 ===
 $ [put] localfilename sdfsfilename
 $ [get] sdfsfilename localfilename
 $ [delete] sdfsfilename
@@ -36,7 +32,7 @@ $ dd if=/dev/urandom of=test_file_07 bs=1000000 count=7
 ```
 
 
- * All logs are in `logs.txt` under the mp2 folder 
+ * All logs are in `logs.txt` under the mp2 folder
 
 ## Acknowledgement
  * [Beej's guide](http://beej.us/guide/bgnet/html/multi/index.html)

@@ -97,6 +97,7 @@ public:
 	HashRing *workerRing; //hashring of worker nodes maple/juice
 	map<string, vector<tuple<string, string>>> mapleSending; //originIP -> (file, chunk_start);
 	vector<string> mapleKeys; //keys produced in maple phase
+	queue<string> maplejuiceQ;
 	string exe;
 	string sdfsPre;
 	string sdfsOut;

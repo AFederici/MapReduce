@@ -36,6 +36,8 @@ Node::Node(ModeType mode) : Node() { runningMode = mode; }
 
 void Node::startActive()
 {
+	queue<string> empty;
+    swap( maplejuiceQ , empty );
 	resetMapleJuice();
 	restartElection();
 	// inserting its own into the list
@@ -846,7 +848,7 @@ void Node::handleTcpMessage()
 		switch (msg.type) {
 			case JUICESTART: {
 				if (workerRing->size()) {
-					tcpServent->regMessages.push(msg.toString());
+					maplejuiceQ.push(msg.toString());
 					cout << "[JUICE] maple or juice in progress" << endl;
 					break;
 				}
@@ -962,6 +964,8 @@ void Node::handleTcpMessage()
 					}
 					cout << "[JUICE] ------------ complete ---------- (besides replication and deletes lol)" << endl;
 					resetMapleJuice();
+					tcpServent->regMessages.push(maplejuiceQ.front());
+					maplejuiceQ.pop();
 				}
 				break;
 			}
@@ -971,7 +975,7 @@ void Node::handleTcpMessage()
 			case MAPLESTART: {
 				//leader only function
 				if (workerRing->size()) {
-					tcpServent->regMessages.push(msg.toString());
+					maplejuiceQ.push(msg.toString());
 					cout << "[MAPLE] maple or juice in progress" << endl;
 					break;
 				}
@@ -1145,6 +1149,8 @@ void Node::handleTcpMessage()
 					replicateKeys();
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
 					resetMapleJuice();
+					tcpServent->regMessages.push(maplejuiceQ.front());
+					maplejuiceQ.pop();
 				}
 				break;
 			}
