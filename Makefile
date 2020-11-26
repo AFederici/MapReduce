@@ -1,6 +1,6 @@
 APP := Node
 APP2 := Wc
-APP3 := Wc
+APP3 := Wr
 INC_DIR := ./inc
 CFLAGS := -g -Wall -std=c++11 -I$(INC_DIR)
 LIBS := -lpthread
