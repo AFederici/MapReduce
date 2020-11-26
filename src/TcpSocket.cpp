@@ -292,10 +292,10 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			break;
 		}
 		case MERGE: {
-			cout << "[MERGE] merging ..... ";
+			cout << "[MERGE] merging ..... " << endl;
 			vector<string> filesAndSizes = splitString(msg.payload, ",");
 			int returnType = stoi(filesAndSizes[0]);
-			string filedest = filesAndSizes[1], processed = "";
+			string filedest = filesAndSizes[1], processed = "", filename = "";
 			int dirSize = filesAndSizes.size();
 			int index = 2;
 			int fail = 0;
@@ -305,14 +305,14 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			while (index < dirSize - 1){
 				format.clear();
 				format = splitString(filesAndSizes[index], "-"); //cut the tmp off
-				filedest = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
-				cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filedest << " " << filesAndSizes[index+1] << endl;
+				filename = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
+				cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
 				bytesLeft = filesize;
 				buffersize = DEFAULT_TCP_BLKSIZE;
 				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
-				fp = fopen(filedest.c_str(), "ab");
+				fp = fopen(filename.c_str(), "ab");
 				bzero(buf, sizeof(buf));
 				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && (bytesLeft > 0)) {
 					bytesLeft -= numbytes;
@@ -324,7 +324,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				sleep(1);
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
-				if (bytesLeft) { fail = 1; remove(filedest.c_str()); }
+				if (bytesLeft) { fail = 1; remove(filename.c_str()); }
 				else {
 					if (processed.size()) processed += ",";
 					processed += filesAndSizes[index];
