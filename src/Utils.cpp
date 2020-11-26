@@ -67,7 +67,7 @@ void handlePipe(int file) {
 		tmp = fopen(keyFile.c_str(), "ab");
 		fwrite(write.c_str(),sizeof(char),write.size(),tmp);
 		fclose(tmp);
-		//cout << "[PIPE] " << key << " to " << keyFile << endl;
+		cout << "[PIPE] " << key << " to " << keyFile << endl;
 	}
     fclose (stream);
  }
@@ -83,7 +83,7 @@ int runExecutable(string command, string input){
 		fprintf (stderr, "Fork failed.\n"); exit(1);
 	} else { //child process
 	  close(dataPipe[0]);
-	  //cout << "[EXEC] processing " << tmpOutput << " with " << command << endl;
+	  cout << "[EXEC] processing " << input << " with " << command << endl;
 	  dup2(dataPipe[1], 1); //stdout -> write end of pipe
 	  int status = execl(command.c_str(),command.c_str(),input.c_str(),NULL);
 	  if (status < 0) exit(status);

@@ -970,6 +970,7 @@ void Node::handleTcpMessage()
 				break;
 			}
 			case PHASESTART: {
+				cout << "[PHASESTART] gogogogo" <<endl;
 				resetMapleJuice(); break;
 			}
 			case MAPLESTART: {
@@ -1067,12 +1068,13 @@ void Node::handleTcpMessage()
 					string execName = "./" + inMsg[1];
 					if (runExecutable(execName, inMsg[3])) { cout << "[EXEC] ERROR" << endl; break;}
 					string ackStr = nodeInformation.ip + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
+
 					Messages ackMsg(MAPLEACK, ackStr);
 					sleep(1);
 					tcpServent->sendMessage(leaderIP, TCPPORT, ackMsg.toString());
 					break;
 				}
-				//cout << "[CHUNKACK] leader confirming the chunk was received" << endl;
+				cout << "[CHUNKACK] leader confirming " << inMsg[4] << "::" << inMsg[2] << " was received" << endl;
 				vector<tuple<string,string>> temp;
 				for (auto &e : mapleSending[inMsg[0]]){
 					if (get<0>(e).compare(inMsg[4]) == 0){
