@@ -855,6 +855,7 @@ void Node::handleTcpMessage()
 				resetMapleJuice();
 				if (inMsg.size() < 6) break;
 				//juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}
+				cout << "[JUICE] Leader starting new Juice phase" << endl;
 				string includedDebug = "";
 				sdfsOut = inMsg[3], sdfsPre = inMsg[2] + "-";
 				exe = inMsg[0];

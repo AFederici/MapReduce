@@ -133,8 +133,8 @@ void TcpSocket::mergeFiles(string ip, string port, string handler, string filede
 	if (!toSend.size()) return;
 	vector<string> toProcess = splitString(toSend, ",");
 	int dirSize = toProcess.size();
-	cout << "[PUTDIR] " << toSend << " to " << ip << endl;
-	string payload = handler + "::" + filedest + "::" + toSend;
+	string payload = handler + "," + filedest + "," + toSend;
+	cout << "[PUTDIR] payload: " << payload << " to " << ip << endl;
 	Messages msg(MERGE, payload);
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
@@ -293,12 +293,11 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		}
 		case MERGE: {
 			cout << "[MERGE] merging ..... ";
-			vector<string> handler = splitString(msg.payload, "::");
-			int returnType = stoi(handler[0]);
-			string filedest = handler[1], processed = "";
-			vector<string> filesAndSizes = splitString(handler[2], ",");
+			vector<string> filesAndSizes = splitString(msg.payload, ",");
+			int returnType = stoi(filesAndSizes[0]);
+			string filedest = filesAndSizes[1], processed = "";
 			int dirSize = filesAndSizes.size();
-			int index = 0;
+			int index = 2;
 			int fail = 0;
 			int bytesLeft = 0;
 			int buffersize = DEFAULT_TCP_BLKSIZE;
@@ -307,7 +306,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				format.clear();
 				format = splitString(filesAndSizes[index], "-"); //cut the tmp off
 				filedest = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
-				cout << "[MERGE] index " << to_string(index) << " " << filedest << " " << filesAndSizes[index+1] << endl;
+				cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filedest << " " << filesAndSizes[index+1] << endl;
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
 				bytesLeft = filesize;
@@ -335,7 +334,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			if (fail && (returnType == MAPLEACK)) { Messages ack(MERGEFAIL, returnIP + "::"); regMessages.push(ack.toString()); }
 			else if (returnType == MAPLEACK){ Messages ack(MERGECOMPLETE, returnIP + "::"); regMessages.push(ack.toString()); }
 			else if (returnType == JUICE){ Messages ack(JUICEACK, returnIP + "::" + processed); regMessages.push(ack.toString()); }
-			else { cout << "[MERGE bad return type " << handler[0] << endl;}
+			else { cout << "[MERGE bad return type " << to_string(returnType) << endl;}
 			break;
 		}
 		case PUT: {
