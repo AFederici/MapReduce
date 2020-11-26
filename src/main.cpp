@@ -1,25 +1,6 @@
 #include "../inc/Node.h"
 
-void put(string in1, string in2, Node * node){
-	string localfilename = in1;
-	string sdfsfilename = in2;
-	FILE * fp = fopen(localfilename.c_str(), "rb");
-	if (fp == NULL) {
-		cout << "[PUT] The file " << localfilename << " does not exist" << endl;
-		return;
-	}
-	fseek(fp, 0, SEEK_END);
-	long int size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	fclose(fp);
-	int number_of_lines = 0;
-	string line;
-	ifstream myfile(localfilename.c_str());
-	while (getline(myfile, line)) ++number_of_lines;
-	Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::");
-	cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
-	node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
-}
+void put(string in1, string in2, Node * node);
 
 int main(int argc, char *argv[])
 {
@@ -209,8 +190,8 @@ int main(int argc, char *argv[])
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
 			}
 		} else if (cmd == "juice" && joined){
-			if(cmdLineInput.size() < 6){
-				cout << "USAGE: juice juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1}" << endl;
+			if(cmdLineInput.size() < 7){
+				cout << "USAGE: juice juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}" << endl;
 				continue;
 			}
 			if (FILE *file = fopen(cmdLineInput[1].c_str(), "r")) {
@@ -220,7 +201,18 @@ int main(int argc, char *argv[])
 				continue;
 			}
 			if (!node->isBlackout){
-				//TODO
+				string msg = cmdLineInput[1] + "::" + cmdLineInput[2] + "::" + cmdLineInput[3] + "::" + cmdLineInput[4];
+				msg += (cmdLineInput[5] + "::" + cmdLineInput[6]);
+				try {
+					stoi(cmdLineInput[5]); stoi(cmdLineInput[6]); stoi(cmdLineInput[2]);
+				} catch(...) {
+					cout << "[ERROR] the number of juices and the last 2 arguments must be an integer value " << endl;
+					cout << "USAGE: juice juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}" << endl;
+					continue;
+				}
+				Messages outMsg(JUICESTART, msg);
+				cout << "[JUICE] forwarding request to " << node->leaderIP << endl;
+				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;
 			}
@@ -253,4 +245,25 @@ int main(int argc, char *argv[])
 	}
 	pthread_exit(NULL);
 	return 1;
+}
+
+void put(string in1, string in2, Node * node){
+	string localfilename = in1;
+	string sdfsfilename = in2;
+	FILE * fp = fopen(localfilename.c_str(), "rb");
+	if (fp == NULL) {
+		cout << "[PUT] The file " << localfilename << " does not exist" << endl;
+		return;
+	}
+	fseek(fp, 0, SEEK_END);
+	long int size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	fclose(fp);
+	int number_of_lines = 0;
+	string line;
+	ifstream myfile(localfilename.c_str());
+	while (getline(myfile, line)) ++number_of_lines;
+	Messages outMsg(DNS, node->nodeInformation.ip + "::" + to_string(node->hashRingPosition) + "::" + sdfsfilename + "::" + localfilename + "::" + to_string(size) + "::" + to_string(number_of_lines) + "::");
+	cout << "[PUT] Got localfilename: " << localfilename << " with sdfsfilename: " << sdfsfilename << endl;
+	node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 }

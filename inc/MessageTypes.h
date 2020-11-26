@@ -27,10 +27,13 @@ enum MessageType {
 	REREPLICATEGET,
 	MAPLESTART, //send to master to initiate maple phase
 	JUICESTART, //send to master to initiate juice phase
-	MAPLEACK,
+	PHASESTART, //signal to start a new phase, do appropriate setup
+	JUICE, //signals to start piece of work in juice phase, may need to DNSGET
+	JUICEACK,
+	MAPLEACK, //tell master chunk was mapled
 	CHUNK, //send to nodes so they have information about what kind of get request to send
 	CHUNKACK, //after append ack received, send this back to master to know when things are Done
-	MERGE,
+	MERGE, //merge messages used for combining keys at end of maple phased
 	STARTMERGE,
 	MERGECOMPLETE,
 	MERGEFAIL

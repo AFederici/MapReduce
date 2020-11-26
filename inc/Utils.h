@@ -36,7 +36,7 @@ int new_thread_id();
 void handlePipe(int file);
 bool isInVector(vector<int> v, int i);
 void sigchld_handler(int s);
-
+int runExecutable(string command, string input);
 //adapted from https://stackoverflow.com/questions/23030267/custom-sorting-a-vector-of-tuples
 template<int M, template<typename> class F = std::less>
 struct TupleCompare

@@ -31,6 +31,7 @@ public:
     int getPredecessor(int nodePosition); //Get position of predecessor node
     void debugHashRing();
     void clear();
+    int size();
     int getRandomNode(tuple<int, int, int> excludedNodes);
 };
 

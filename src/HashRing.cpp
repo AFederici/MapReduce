@@ -118,3 +118,5 @@ int HashRing::getRandomNode(tuple<int, int, int> excludedNodes){
     }
     return -1;
 }
+
+int HashRing::size() { return nodePositions.size(); }

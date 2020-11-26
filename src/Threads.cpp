@@ -46,7 +46,7 @@ void *runTcpSender(void *tcpSocket)
 		}
 		while (!tcp->mergeMessages.empty()) {
 			vector<string> msgSplit = splitString(tcp->mergeMessages.front(), "::");
-			tcp->putDirectory(msgSplit[0], msgSplit[1]);
+			tcp->mergeFiles(msgSplit[0], msgSplit[1], msgSplit[2], msgSplit[3], msgSplit[4]);
 			tcp->mergeMessages.pop();
 		}
 	}

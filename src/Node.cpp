@@ -4,7 +4,7 @@ Node::Node(){
 	udpServent = new UdpSocket();
 	tcpServent = new TcpSocket();
 	hashRing = new HashRing();
-	mapleRing = new HashRing();
+	workerRing = new HashRing();
 	localTimestamp = 0;
 	heartbeatCounter = 0;
 	runningMode = ALL2ALL;
@@ -15,11 +15,12 @@ Node::Node(){
 	proposedTime = 0;
 	electedTime = 0;
 	joinTimestamp = "";
-	mapleExe = "";
+	exe = "";
 	sdfsPre = "";
 	possibleSuccessorIP = "";
 	leaderIP = "";
 	leaderPort = "";
+	maplejuiceClear = false;
 	isBlackout = true;
 	struct sigaction sa;
 	sa.sa_handler = sigchld_handler; // reap all dead processes
@@ -35,9 +36,7 @@ Node::Node(ModeType mode) : Node() { runningMode = mode; }
 
 void Node::startActive()
 {
-	membershipList.clear();
-	workerTasks.clear();
-	mapleProcessing.clear();
+	resetMapleJuice();
 	restartElection();
 	// inserting its own into the list
 	time(&startTimestamp);
@@ -164,34 +163,36 @@ int Node::failureDetection(){
 					for (auto &e : membershipList) aliveNodes.push_back(e.first);
 					vector<tuple<string,string,string>> mapleNodes;
 					int nextId;
-					if ((mapleRing->nodePositions.size()-1) == hashRing->nodePositions.size()){
-						nextId = mapleRing->getSuccessor(deletedNodePostion);
+					if ((workerRing->nodePositions.size()-1) == hashRing->nodePositions.size()){
+						nextId = workerRing->getSuccessor(deletedNodePostion);
 					} else {
 						while (1){
 							Member m(get<0>(mapleNodes[0]), get<1>(mapleNodes[0]));
 							nextId = hashingId(m, get<2>(mapleNodes[0]));
 							mapleNodes = randItems(1, aliveNodes);
-							if (mapleRing->getValue(nextId).compare("No node found") != 0) continue;
+							if (workerRing->getValue(nextId).compare("No node found") != 0) continue;
 							break;
 						}
-						mapleRing->addNode(get<0>(mapleNodes[0]), nextId);
+						workerRing->addNode(get<0>(mapleNodes[0]), nextId);
 					}
-					mapleRing->removeNode(deletedNodePostion);
+					workerRing->removeNode(deletedNodePostion);
 
 					//if deleted from workerTasks its been fully processed and doesnt need to be re-scheduled
-					auto vecCopy(mapleProcessing[get<0>(keyTuple)]);
+					auto vecCopy(workerProcessing[get<0>(keyTuple)]);
 					if (workerTasks.find(get<0>(keyTuple)) != workerTasks.end()){
-						mapleProcessing[get<0>(mapleNodes[0])] = vecCopy;
-						for (auto el : vecCopy) workerTasks[get<0>(mapleNodes[0])].insert(el);
+						workerProcessing[get<0>(mapleNodes[0])] = vecCopy;
+						for (auto el : vecCopy) workerTasks[get<0>(mapleNodes[0])].insert(el); //so we dont share a copy with processing
+						Messages startMsg(PHASESTART, "");
+						tcpServent->sendMessage(get<0>(mapleNodes[0]), TCPPORT, startMsg.toString());
 					}
-					mapleProcessing.erase(get<0>(keyTuple));
+					workerProcessing.erase(get<0>(keyTuple));
 					workerTasks.erase(get<0>(keyTuple));
 
 					for (auto &e : mapleSending[get<0>(keyTuple)]){
 						vector<int> temp = randItems(1, fileList[get<0>(e)]);
 						mapleSending[hashRing->getValue(temp[0])].push_back(make_tuple(get<0>(e), get<1>(e)));
-						//mapleRing->getValue(id) + "::" maple_exe + ":: " + s + "::" + sdfs_pre;
-						string mapleS = hashRing->getValue(temp[0]) + "::" + mapleExe + "::" + get<0>(e)+ "::" + get<1>(e)+ "::" + sdfsPre;
+						//workerRing->getValue(id) + "::" maple_exe + ":: " + s + "::" + sdfs_pre;
+						string mapleS = hashRing->getValue(temp[0]) + "::" + exe + "::" + get<0>(e)+ "::" + get<1>(e)+ "::" + sdfsPre;
 						tcpServent->mapleMessages.push(mapleS);
 					}
 
@@ -799,22 +800,22 @@ void Node::replicateKeys(){
 			string file = sdfsPre + "-" + key;
 			updateFileList(file, hashRingPosition);
 			fileSizes[file] = make_tuple(-1, -1); //we don't care
-			int workers = mapleProcessing.size();
+			int workers = workerProcessing.size();
 			if (workers > 3) workers = 3; //only need to replicate to 3 places
-			int closest = mapleRing->locateClosestNode(file);
-			int pred = mapleRing->getPredecessor(closest);
-			int succ = mapleRing->getSuccessor(closest);
-			cout << "[MAPLEEND] replicating " << file << " to: " << mapleRing->getValue(closest);
-			cout << "," << mapleRing->getValue(pred) << "," << mapleRing->getValue(succ) << endl;
+			int closest = workerRing->locateClosestNode(file);
+			int pred = workerRing->getPredecessor(closest);
+			int succ = workerRing->getSuccessor(closest);
+			//cout << "[MAPLEEND] replicating " << file << " to: " << workerRing->getValue(closest);
+			//cout << "," << workerRing->getValue(pred) << "," << workerRing->getValue(succ) << endl;
 			pendingRequests[file] = tuple<int, int, int>(closest, pred, succ);
 			pendingRequestSent[file] = tuple<int, int, int>(true, false, false);
 			pendingSenderRequests[file] = tuple<string, string, string>(nodeInformation.ip, "", "");
-			string sendMsg = mapleRing->getValue(closest)+"::"+file+"::"+file+"::"+file;
+			string sendMsg = workerRing->getValue(closest)+"::"+file+"::"+file+"::"+file;
 			this->tcpServent->pendSendMessages.push(sendMsg);
 		}
-		cout << "[MAPLEKEYS]";
-		for (auto &k : mapleKeys) cout << "  " << k;
-		cout << endl;
+		//cout << "[MAPLEKEYS]";
+		//for (auto &k : mapleKeys) cout << "  " << k;
+		//cout << endl;
 	}
 }
 
@@ -844,74 +845,198 @@ void Node::handleTcpMessage()
 		// cout << "Has " << msg.type << " with " << msg.payload << endl;
 		switch (msg.type) {
 			case JUICESTART: {
-				if (workerTasks.size()) {tcpServent->regMessages.push(msg.toString()); break;}
-				//TODO JUICESTART
-				//tell all nodes they can delete tmp files.
+				if (workerRing->size()) {
+					tcpServent->regMessages.push(msg.toString());
+					cout << "[JUICE] maple or juice in progress" << endl;
+					break;
+				}
+				resetMapleJuice();
+				if (inMsg.size() < 6) break;
+				//juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}
+				string includedDebug = "";
+				sdfsOut = inMsg[3], sdfsPre = inMsg[2] + "-";
+				exe = inMsg[0];
+				maplejuiceClear = (stoi(inMsg[4])) ? true : false;
+				int workers = stoi(inMsg[1]), isRangePartition = stoi(inMsg[5]);
+				int ringSize = hashRing->nodePositions.size();
+				if (workers > ringSize-1) workers = ringSize-1;
+				vector<string> directory;
+				vector<tuple<string,string,string>> aliveNodes;
+				//cout << "[DIRECTORY] " << sdfsPre;
+				for (auto &e: fileList){
+					//cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
+					if (strncmp(e.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
+						//cout << " was a match ";
+						directory.push_back(e.first);
+					}
+				}
+				sort(directory.begin(), directory.end());
+				//cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
+				for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
+				vector<tuple<string,string,string>> juiceNodes = randItems(workers, aliveNodes);
+				for (auto &e : juiceNodes) {
+					Member m(get<0>(e), get<1>(e));
+					workerRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
+					if (includedDebug.size()) includedDebug += " | ";
+					includedDebug += get<0>(e);
+					Messages startMsg(PHASESTART, "");
+					tcpServent->sendMessage(get<0>(e), TCPPORT, startMsg.toString());
+				}
+				//cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
+				if (isRangePartition){
+					int rangeSplit = (int) (round(double(directory.size()) / double(workers)));
+					int workerAssigned = 0;
+					int fileIndex = 0;
+					for (auto &e: directory){
+						string processor = get<0>(juiceNodes[workerAssigned]);
+						workerProcessing[processor].push_back(make_tuple(e, "0")); //dont care about line #
+						fileIndex++;
+						if (fileIndex >= ((workerAssigned+1)*rangeSplit)) { workerAssigned++; }
+					}
+				}
+				else {
+					for (auto &e: directory){
+						string processor = workerRing->getValue(workerRing->locateClosestNode(e));
+						workerProcessing[processor].push_back(make_tuple(e, "0")); //dont care about line #
+					}
+				}
+				for (auto &work : workerProcessing) {
+					for (auto &f : work.second){
+						//file to juice, exe to run, output for merging
+						string msg = get<0>(f) + "::" + exe + "::" + sdfsOut;
+						Messages outMsg(JUICE, msg);
+						tcpServent->sendMessage(work.first, TCPPORT, outMsg.toString());
+					}
+				}
+				break;
+			}
+			case JUICE: {
+				if (localFilelist.find(inMsg[0]) == localFilelist.end()){
+					//get request
+					Messages outMsg(DNSGET, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + inMsg[0] + "::" + inMsg[0]);
+					//cout << "[GET] Got sdfsfilename: " << sdfsfilename << " with localfilename: " << localfilename << endl;
+					tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
+					tcpServent->regMessages.push(msg.toString()); //re-add JUICE to queue
+				} else{
+					string execName = "./" + inMsg[1];
+					if (runExecutable(execName, inMsg[0])) { cout << "[EXEC] ERROR" << endl; break;}
+					vector<string> juicedFiles = splitString(tcpServent->getDirMetadata(), ",");
+					string leftToMerge = "";
+					int index = 0, range = juicedFiles.size()-1;
+					while (index < range){
+						auto element = make_tuple(juicedFiles[index], "0"); //second element doesnt matter
+						if (workerTasks[nodeInformation.ip].count(element) == 0) {
+							workerTasks[nodeInformation.ip].insert(element);
+							if (leftToMerge.size()) leftToMerge += ",";
+							leftToMerge += (juicedFiles[index] + "," + juicedFiles[index+1]);
+						}
+						index += 2;
+					}
+					string header = leaderIP + "::" + TCPPORT + "::" + to_string(JUICE) + "::" + inMsg[2] + "::";
+					string mergeMsg = header + leftToMerge;
+					this->tcpServent->mergeMessages.push(mergeMsg);
+				}
+				break;
+			}
+
+			case JUICEACK: {
+				if (!isLeader) break;
+				vector<string> completedJuices = splitString(inMsg[1], ",");
+				for (string &task : completedJuices){
+					auto element = make_tuple(task, "0");
+					auto it = find(workerProcessing[inMsg[0]].begin(), workerProcessing[inMsg[0]].end(), element);
+					if (it != workerProcessing[inMsg[0]].end()) workerProcessing[inMsg[0]].erase(it);
+				}
+				if (!workerProcessing[inMsg[0]].size()) workerProcessing.erase(inMsg[0]);
+				if (!workerProcessing.size()) {
+					Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + sdfsOut + "::" + sdfsOut + "::" + "-1" + "::" + "-1" + "::");
+					tcpServent->regMessages.push(outMsg.toString());
+					if (maplejuiceClear){
+						for (auto &f : fileList){
+							if (strncmp(f.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
+								Messages outMsg(DELETE, nodeInformation.ip + "::" + f.first);
+								//cout << "[DELETE] Got sdfsfilename: " << f.first << endl;
+								tcpServent->regMessages.push(outMsg.toString());
+							}
+						}
+					}
+					cout << "[JUICE] ------------ complete ---------- (besides replication and deletes lol)" << endl;
+					resetMapleJuice();
+				}
+				break;
+			}
+			case PHASESTART: {
+				resetMapleJuice(); break;
 			}
 			case MAPLESTART: {
 				//leader only function
-				//currently running something, dont start a new phase
-				if (workerTasks.size()) {tcpServent->regMessages.push(msg.toString()); cout << "[MAPLE] already mapling" << endl; break;}
-				//cout << "[MAPLE] Leader starting new Maple phase" << endl;
-				cleanupTmpFiles("tmp-");
-				mapleProcessing.clear(); workerTasks.clear(); mapleRing->clear(); mapleSending.clear(); mapleKeys.clear();
-				if (inMsg.size() >= 4){
-					string mapleExe = inMsg[0], num_maples = inMsg[1], sdfs_dir = inMsg[3] + "-";
-					sdfsPre = inMsg[2];
-					int workers = stoi(num_maples);
-					int ringSize = hashRing->nodePositions.size();
-					//3 workers and a master is a condition set for correct working of the program.
-					//This assumption is similarly made in other places based on the design specification of 3 simul fails
-					if (ringSize <= 3){ cout << "[ERROR] Not enough nodes for Maple. Need 4 minimum (3 workers, 1 leader)" << endl; break;}
-					if (workers > ringSize-1) workers = ringSize-1;
-					int total_lines = 0;
-					vector<tuple<string,int>> directory;
-					cout << "[DIRECTORY] " << sdfs_dir;
-					for (auto &e: fileSizes){
-						cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
-						if (strncmp(e.first.c_str(), sdfs_dir.c_str(), sdfs_dir.size()) == 0){
-							cout << " was a match ";
-							directory.push_back(make_tuple(e.first, get<1>(e.second)));
-							total_lines += get<1>(e.second);
-						}
-					}
-					//cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
-					vector<tuple<string,string,string>> aliveNodes;
-					for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
-					vector<tuple<string,string,string>> mapleNodes = randItems(workers, aliveNodes);
-					string includedDebug = "";
-					for (auto &e : mapleNodes) {
-						Member m(get<0>(e), get<1>(e));
-						mapleRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
-						if (includedDebug.size()) includedDebug += " | ";
-						includedDebug += get<0>(e);
-					}
-					//cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
-					int start = 0, id = 0;
-					string s;
-					for (auto &e: directory){
-						start = 0;
-						string file = get<0>(e);
-						int lines = get<1>(e);
-						//cout << "[MAPLE] file: " << file << " - " << to_string(lines) << endl;
-						while (start < lines){
-							s = file + "::" + to_string(start);
-							id = mapleRing->locateClosestNode(s);
-							srand(time(NULL));
-							vector<int> temp = randItems(1, fileList[file]);
-							string sender = hashRing->getValue(temp[0]); //because files are part of sdfs anyone can be the sender
-							string processor = mapleRing->getValue(id); //processor is a maple worker
-							mapleProcessing[processor].push_back(make_tuple(file, to_string(start)));
-							workerTasks[processor].insert(make_tuple(file, to_string(start)));
-							//cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
-							mapleSending[sender].push_back(make_tuple(file, to_string(start)));
-							string maplemsg = sender + "::" + processor + "::" + mapleExe + "::" + s;
-							//sender, processor, exec, file, start
-							tcpServent->mapleMessages.push(maplemsg);
-							start = start + T_maples;
-						}
+				if (workerRing->size()) {
+					tcpServent->regMessages.push(msg.toString());
+					cout << "[MAPLE] maple or juice in progress" << endl;
+					break;
+				}
+				resetMapleJuice();
+				cout << "[MAPLE] Leader starting new Maple phase" << endl;
+				if (inMsg.size() < 4) break;
+				string exe = inMsg[0], num_maples = inMsg[1], sdfs_dir = inMsg[3] + "-", s = "";
+				sdfsPre = inMsg[2];
+				int workers = stoi(num_maples), ringSize = hashRing->nodePositions.size();
+				if (workers > ringSize-1) workers = ringSize-1;
+				int total_lines = 0, start = 0, id = 0;
+				vector<tuple<string,int>> directory;
+				vector<tuple<string,string,string>> aliveNodes;
+				//3 workers and a master is a condition set for correct working of the program.
+				//This assumption is similarly made in other places based on the design specification of 3 simul fails
+				if (ringSize <= 3){
+					cout << "[ERROR] Not enough nodes for Maple. Need 4 minimum (3 workers, 1 leader)" << endl;
+					break;
+				}
+				//cout << "[DIRECTORY] " << sdfs_dir;
+				for (auto &e: fileSizes){
+					//cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
+					if (strncmp(e.first.c_str(), sdfs_dir.c_str(), sdfs_dir.size()) == 0){
+						//cout << " was a match ";
+						directory.push_back(make_tuple(e.first, get<1>(e.second)));
+						total_lines += get<1>(e.second);
 					}
 				}
+				//cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
+				for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
+				vector<tuple<string,string,string>> mapleNodes = randItems(workers, aliveNodes);
+				string includedDebug = "";
+				for (auto &e : mapleNodes) {
+					Member m(get<0>(e), get<1>(e));
+					workerRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
+					if (includedDebug.size()) includedDebug += " | ";
+					includedDebug += get<0>(e);
+					Messages startMsg(PHASESTART, "");
+					tcpServent->sendMessage(get<0>(e), TCPPORT, startMsg.toString());
+				}
+				vector<string> messagesToSend; //used so we get our full assignments before scheduling
+				//cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
+				for (auto &e: directory){
+					start = 0;
+					string file = get<0>(e);
+					int lines = get<1>(e);
+					//cout << "[MAPLE] file: " << file << " - " << to_string(lines) << endl;
+					while (start < lines){
+						s = file + "::" + to_string(start);
+						id = workerRing->locateClosestNode(s);
+						srand(time(NULL));
+						vector<int> temp = randItems(1, fileList[file]);
+						string sender = hashRing->getValue(temp[0]); //because files are part of sdfs anyone can be the sender
+						string processor = workerRing->getValue(id); //processor is a maple worker
+						workerProcessing[processor].push_back(make_tuple(file, to_string(start)));
+						workerTasks[processor].insert(make_tuple(file, to_string(start)));
+						//cout << "[MAPLE] assign file " << file << " at " << to_string(start) << " to " << processor << endl;
+						mapleSending[sender].push_back(make_tuple(file, to_string(start)));
+						string maplemsg = sender + "::" + processor + "::" + exe + "::" + s;
+						//sender, processor, exec, file, start
+						messagesToSend.push_back(maplemsg);
+						start = start + T_maples;
+					}
+				}
+				for (auto mapleMsg : messagesToSend) tcpServent->mapleMessages.push(mapleMsg);
 				break;
 			}
 
@@ -935,26 +1060,8 @@ void Node::handleTcpMessage()
 				if (!isLeader) {
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
-					sleep(1);
-					int dataPipe[2];
-					if (pipe(dataPipe)){ fprintf (stderr, "Pipe failed.\n"); break; }
-					pid_t pid = fork();
-					if (pid){
-					  close(dataPipe[1]);
-					  handlePipe(dataPipe[0]);
-					} else if (pid < 0) {
-					    fprintf (stderr, "Fork failed.\n"); break;
-					} else { //child process
-					  close(dataPipe[0]);
-					  string execName = "./" + inMsg[1];
-					  //cout << "[CHUNKACK] processing " << inMsg[3] << " with " << execName << endl;
-					  dup2(dataPipe[1], 1); //stdout -> write end of pipe
-					  int status = execl(execName.c_str(),execName.c_str(),inMsg[3].c_str(),NULL);
-					  if (status < 0) exit(status);
-					}
-					int status;
-					waitpid(pid, &status, 0);
-					close(dataPipe[0]);close(dataPipe[1]);
+					string execName = "./" + inMsg[1];
+					if (runExecutable(execName, inMsg[3])) { cout << "[EXEC] ERROR" << endl; break;}
 					string ackStr = nodeInformation.ip + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
 					Messages ackMsg(MAPLEACK, ackStr);
 					sleep(1);
@@ -999,7 +1106,7 @@ void Node::handleTcpMessage()
 			}
 
 			case STARTMERGE: {
-				string sendMsg = leaderIP + "::" + TCPPORT;
+				string sendMsg = leaderIP + "::" + TCPPORT + "::" + to_string(MAPLEACK) + "::" + "::" + tcpServent->getDirMetadata();
 				cout << "[STARTMERGE] from node " << nodeInformation.ip << " to " << leaderIP << endl;
 				this->tcpServent->mergeMessages.push(sendMsg);
 				break;
@@ -1026,15 +1133,19 @@ void Node::handleTcpMessage()
 						ifstream toMerge(entry->d_name);
 						if (!toMerge.is_open() || !keyFile.is_open()) {
 							cout << "bad file permissions for " << entry->d_name << " and/or " << mapleOutput << endl;
-							mapleKeys.clear();
+							mapleKeys.pop_back();
 							break;
 						}
 						keyFile << toMerge.rdbuf();
 						keyFile.close();
 			        }
 			    }
-
-				if (!workerTasks.size()) { replicateKeys(); mapleProcessing.clear(); }
+				//Done with maple phase
+				if (!workerTasks.size()) {
+					replicateKeys();
+					cout << "[MAPLE] ------------ complete ---------- " << endl;
+					resetMapleJuice();
+				}
 				break;
 			}
 
@@ -1567,4 +1678,9 @@ string Node::populateSDFSFileList(MessageType type, string mem_list_to_send)
 	}
 	string enMeg = encapsulateMessage(payloads);
 	return enMeg;
+}
+
+void Node::resetMapleJuice(){
+	cleanupTmpFiles("tmp-"); workerProcessing.clear(); workerTasks.clear();
+	mapleSending.clear(); workerRing->clear();
 }

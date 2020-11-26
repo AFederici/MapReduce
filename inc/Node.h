@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <cmath>
 #include <set>
 #include <pthread.h>
 #include <time.h>
@@ -84,14 +85,22 @@ public:
 	map<string, tuple<bool, bool, bool>> pendingRequestSent; //?
 
 	//master properties for MAPLEJUICE
-	map<string, vector<tuple<string, string>>> mapleProcessing; //ip -> [ (file, chunk_start) ]
-	map<string, set<tuple<string,string>>> workerTasks; //above is static, this removes tasks when done
+	map<string, vector<tuple<string, string>>> workerProcessing; //ip -> [ (file, chunk_start) ]
+
+	//used for maple tasks because we want all or nothing results.
+	//for juice once a key is processed and sent, it doesnt need to be redone on failure
+	//however, this datastructure is used in the opposite way in juice. That is we build up
+	//the set of what has been sent to master so we dont double send something.
+	map<string, set<tuple<string,string>>> workerTasks;
+
 	map<string, tuple<long int, int>> fileSizes; //used so master can partition in the map phase tuple is (bytes, lines)
-	HashRing *mapleRing;
+	HashRing *workerRing; //hashring of worker nodes maple/juice
 	map<string, vector<tuple<string, string>>> mapleSending; //originIP -> (file, chunk_start);
-	vector<string> mapleKeys;
-	string mapleExe;
+	vector<string> mapleKeys; //keys produced in maple phase
+	string exe;
 	string sdfsPre;
+	string sdfsOut;
+	bool maplejuiceClear;
 
 
 	Node();
@@ -126,6 +135,7 @@ public:
 	void restartElection(); //reset leader info
 	void setUpLeader(string message, bool pending); //setup leader
 	void replicateKeys();
+	void resetMapleJuice();
 private:
 	string populateMembershipMessage(); //membershipList to string based on mode type
 	string populateIntroducerMembershipMessage(); //entire membership list to string

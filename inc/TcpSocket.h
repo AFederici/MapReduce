@@ -56,14 +56,14 @@ public:
 	void bindServer(string port);
 	void sendFile(int socket, FILE * fp, int size);
 	void putFile(string ip, string port, string localfilename, string sdfsfilename, string remoteLocalfilename);
-	void putDirectory(string ip, string port); //put everything in tmp directory
+	void mergeFiles(string ip, string port, string handler, string filedest, string message); //merge everything in message
 	void sendLines(string ip, string port, string execFile, string sdfsFile, string localFile, int start, int end);
 	void sendMessage(string ip, string port, string message);
 	int messageHandler(int sockfd, string payloadMessage, string returnID);
 	int createConnection(string ip, string port);
+	string getDirMetadata();
 	TcpSocket();
 private:
 	string getFileMetadata(int size, string checksum, string sdfsfilename, string localfilename, string remoteLocalfilename);
-	string getDirMetadata();
 };
 #endif //TCPSOCKET_H

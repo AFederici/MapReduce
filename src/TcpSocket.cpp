@@ -127,15 +127,15 @@ string TcpSocket::getDirMetadata()
 	return msg;
 }
 
-void TcpSocket::putDirectory(string ip, string port) {
+void TcpSocket::mergeFiles(string ip, string port, string handler, string filedest, string toSend) {
 	FILE * fp;
 	int sockfd = -1, index = 0;
-	string toSend = getDirMetadata();
 	if (!toSend.size()) return;
 	vector<string> toProcess = splitString(toSend, ",");
 	int dirSize = toProcess.size();
 	cout << "[PUTDIR] " << toSend << " to " << ip << endl;
-	Messages msg(MERGE, toSend);
+	string payload = handler + "::" + filedest + "::" + toSend;
+	Messages msg(MERGE, payload);
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
@@ -293,51 +293,49 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		}
 		case MERGE: {
 			cout << "[MERGE] merging ..... ";
-			vector<string> filesAndSizes = splitString(msg.payload, ",");
+			vector<string> handler = splitString(msg.payload, "::");
+			int returnType = stoi(handler[0]);
+			string filedest = handler[1], processed = "";
+			vector<string> filesAndSizes = splitString(handler[2], ",");
 			int dirSize = filesAndSizes.size();
 			int index = 0;
 			int fail = 0;
 			int bytesLeft = 0;
 			int buffersize = DEFAULT_TCP_BLKSIZE;
-			//char tmpbuf[DEFAULT_TCP_BLKSIZE];
-			//bzero(tmpbuf, sizeof(tmpbuf));
-			int tmpbufSize = 0;
 			vector<string> format;
 			while (index < dirSize - 1){
 				format.clear();
 				format = splitString(filesAndSizes[index], "-"); //cut the tmp off
-				string filename = "tmp-" + returnIP + "-" + format[1];
-				cout << "[MERGE] index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
+				filedest = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
+				cout << "[MERGE] index " << to_string(index) << " " << filedest << " " << filesAndSizes[index+1] << endl;
 				filesize = stoi(filesAndSizes[index+1]);
 				numbytes = 0;
 				bytesLeft = filesize;
 				buffersize = DEFAULT_TCP_BLKSIZE;
 				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
-				fp = fopen(filename.c_str(), "wb");
+				fp = fopen(filedest.c_str(), "ab");
 				bzero(buf, sizeof(buf));
-				//handle extra data
-				while (((numbytes=recv(sockfd, buf + tmpbufSize, buffersize - tmpbufSize, 0)) > 0) && (bytesLeft > 0)) {
+				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && (bytesLeft > 0)) {
 					bytesLeft -= numbytes;
 					if (bytesLeft >= 0) fwrite(buf, sizeof(char), numbytes, fp);
-					else {
-						//shouldnt even trigger if the bug fix works
-						cout << "too much sauce" << endl;
-						fwrite(buf, sizeof(char), numbytes + bytesLeft, fp);
-						//memcpy(tempbuf, buf + (numbytes + bytesLeft), -1 * bytesLeft);
-						tmpbufSize = -1 * bytesLeft;
-					}
 					buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 					bzero(buf, sizeof(buf));
 				}
-				cout << " | bytesReceived: " << byteReceived << endl;
+				//cout << " | bytesReceived: " << byteReceived << endl;
 				sleep(1);
-				if (bytesLeft) fail = 1;
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
+				if (bytesLeft) { fail = 1; remove(filedest.c_str()); }
+				else {
+					if (processed.size()) processed += ",";
+					processed += filesAndSizes[index];
+				}
 				index += 2;
 			}
-			if (fail) { Messages ack(MERGEFAIL, returnIP + "::"); regMessages.push(ack.toString()); }
-			else { Messages ack(MERGECOMPLETE, returnIP + "::"); regMessages.push(ack.toString()); }
+			if (fail && (returnType == MAPLEACK)) { Messages ack(MERGEFAIL, returnIP + "::"); regMessages.push(ack.toString()); }
+			else if (returnType == MAPLEACK){ Messages ack(MERGECOMPLETE, returnIP + "::"); regMessages.push(ack.toString()); }
+			else if (returnType == JUICE){ Messages ack(JUICEACK, returnIP + "::" + processed); regMessages.push(ack.toString()); }
+			else { cout << "[MERGE bad return type " << handler[0] << endl;}
 			break;
 		}
 		case PUT: {
@@ -383,11 +381,10 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			}
 			cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 			fclose(fp);
-
 			//FileObject f(localfilename);
 			//if(incomingChecksum.compare(f.checksum) != 0 && incomingChecksum.compare("") != 0){
 			//	cout << "[ERROR] FILE CORRUPTED" << endl;
-				// how to deal with?
+				// in the future deal with file corruption
 			//} else {
 				if (start != -1){
 					//IP, exec, start, temp, sdfs file
@@ -410,9 +407,13 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		case DELETE:
 		case GETNULL:
 		case MAPLESTART:
+		case JUICESTART:
+		case PHASESTART:
 		case MAPLEACK:
 		case CHUNK:
 		case CHUNKACK:
+		case JUICE:
+		case JUICEACK:
 		case STARTMERGE:
 		case MERGECOMPLETE:
 		case MERGEFAIL:

@@ -70,4 +70,25 @@ void handlePipe(int file) {
 		//cout << "[PIPE] " << key << " to " << keyFile << endl;
 	}
     fclose (stream);
-  }
+ }
+
+int runExecutable(string command, string input){
+	int dataPipe[2];
+	if (pipe(dataPipe)){ fprintf (stderr, "Pipe failed.\n"); exit(1); }
+	pid_t pid = fork();
+	if (pid){
+	  close(dataPipe[1]);
+	  handlePipe(dataPipe[0]);
+	} else if (pid < 0) {
+		fprintf (stderr, "Fork failed.\n"); exit(1);
+	} else { //child process
+	  close(dataPipe[0]);
+	  //cout << "[EXEC] processing " << tmpOutput << " with " << command << endl;
+	  dup2(dataPipe[1], 1); //stdout -> write end of pipe
+	  int status = execl(command.c_str(),command.c_str(),input.c_str(),NULL);
+	  if (status < 0) exit(status);
+	}
+	waitpid(pid, NULL, 0);
+	close(dataPipe[0]);close(dataPipe[1]);
+	exit(0);
+}
