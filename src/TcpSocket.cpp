@@ -323,7 +323,6 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 					bzero(buf, sizeof(buf));
 				}
 				//cout << " | bytesReceived: " << byteReceived << endl;
-				sleep(1);
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
 				//TODO error handle better
