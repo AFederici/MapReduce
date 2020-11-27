@@ -862,8 +862,7 @@ void Node::handleTcpMessage()
 					cout << "[JUICE] maple or juice in progress" << endl;
 					break;
 				}
-				cout << "[JUICE] master reseting things. Debug: " << msg.toString() << endl;
-				resetMapleJuice();
+				cout << "[JUICE] Debug: " << msg.toString() << endl;
 				if (inMsg.size() < 6) cout << "[JUICE] message too short " << to_string(inMsg.size()) << endl; break;
 				//juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}
 				cout << "[JUICE] Leader starting new Juice phase" << endl;
@@ -876,16 +875,15 @@ void Node::handleTcpMessage()
 				if (workers > ringSize-1) workers = ringSize-1;
 				vector<string> directory;
 				vector<tuple<string,string,string>> aliveNodes;
-				//cout << "[DIRECTORY] " << sdfsPre;
+				cout << "[DIRECTORY] " << sdfsPre;
 				for (auto &e: fileList){
-					//cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
+					cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
 					if (strncmp(e.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
-						//cout << " was a match ";
+						cout << " was a match ";
 						directory.push_back(e.first);
 					}
 				}
 				sort(directory.begin(), directory.end());
-				//cout << endl << "[MAPLE] need to process " << to_string(total_lines) << endl;
 				for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
 				vector<tuple<string,string,string>> juiceNodes = randItems(workers, aliveNodes);
 				for (auto &e : juiceNodes) {
@@ -896,7 +894,7 @@ void Node::handleTcpMessage()
 					Messages startMsg(PHASESTART, "start juice");
 					tcpServent->sendMessage(get<0>(e), TCPPORT, startMsg.toString());
 				}
-				//cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
+				cout << "[JUICE] " << includedDebug << " are the worker nodes" << endl;
 				if (isRangePartition){
 					int rangeSplit = (int) (round(double(directory.size()) / double(workers)));
 					int workerAssigned = 0;
@@ -927,8 +925,8 @@ void Node::handleTcpMessage()
 			case JUICE: {
 				if (localFilelist.find(inMsg[0]) == localFilelist.end()){
 					//get request
-					Messages outMsg(DNSGET, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + inMsg[0] + "::" + inMsg[0]);
 					cout << "[JUICE] getting: " << inMsg[0] << endl;
+					Messages outMsg(DNSGET, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + inMsg[0] + "::" + inMsg[0]);
 					tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
 					tcpServent->regMessages.push(msg.toString()); //re-add JUICE to queue
 				} else{
@@ -997,7 +995,6 @@ void Node::handleTcpMessage()
 					cout << "[MAPLE] maple or juice in progress" << endl;
 					break;
 				}
-				resetMapleJuice();
 				cout << "[MAPLE] Leader starting new Maple phase" << endl;
 				if (inMsg.size() < 4) break;
 				string exe = inMsg[0], num_maples = inMsg[1], sdfs_dir = inMsg[3] + "-", s = "";
