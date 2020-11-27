@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
 			}
 			if (!node->isBlackout){
 				string msg = cmdLineInput[1] + "::" + cmdLineInput[2] + "::" + cmdLineInput[3] + "::" + cmdLineInput[4];
-				msg += (cmdLineInput[5] + "::" + cmdLineInput[6]);
+				msg += ("::" + cmdLineInput[5] + "::" + cmdLineInput[6]);
 				try {
 					stoi(cmdLineInput[5]); stoi(cmdLineInput[6]); stoi(cmdLineInput[2]);
 				} catch(...) {
