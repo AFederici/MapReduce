@@ -854,7 +854,7 @@ void Node::handleTcpMessage()
 		MessageType msgType = static_cast<MessageType>(stoi(msgSplit[0]));
 		Messages msg(msgType, payload);
 		vector<string> inMsg = splitString(msg.payload, "::");
-		// cout << "Has " << msg.type << " with " << msg.payload << endl;
+		//cout << "[TCP] Has " << msg.type << " with " << msg.payload << endl;
 		switch (msg.type) {
 			case JUICESTART: {
 				if (workerRing->size()) {
@@ -863,7 +863,7 @@ void Node::handleTcpMessage()
 					break;
 				}
 				cout << "[JUICE] Debug: " << msg.toString() << endl;
-				if (inMsg.size() < 6) cout << "[JUICE] message too short " << to_string(inMsg.size()) << endl; break;
+				if (inMsg.size() < 6) { cout << "[JUICE] message too short " << to_string(inMsg.size()) << endl; break; }
 				//juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}
 				cout << "[JUICE] Leader starting new Juice phase" << endl;
 				string includedDebug = "";
