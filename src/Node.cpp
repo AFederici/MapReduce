@@ -965,6 +965,7 @@ void Node::handleTcpMessage()
 					cout << "[JUICE] ------------ complete ---------- (besides replication and deletes lol)" << endl;
 					resetMapleJuice();
 					if (!maplejuiceQ.empty()){
+						while (isBlackout) sleep(5);
 						tcpServent->regMessages.push(maplejuiceQ.front());
 						maplejuiceQ.pop();
 					}
@@ -1154,6 +1155,7 @@ void Node::handleTcpMessage()
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
 					resetMapleJuice();
 					if (!maplejuiceQ.empty()){
+						while (isBlackout) sleep(5);
 						tcpServent->regMessages.push(maplejuiceQ.front());
 						maplejuiceQ.pop();
 					}
