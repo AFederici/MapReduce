@@ -134,13 +134,13 @@ void TcpSocket::mergeFiles(string ip, string port, string handler, string filede
 	vector<string> toProcess = splitString(toSend, ",");
 	int dirSize = toProcess.size();
 	string payload = handler + "," + filedest + "," + toSend;
+	payload = to_string(payload.size() + 1) + "," + payload;
 	cout << "[PUTDIR] payload: " << payload << " to " << ip << endl;
 	Messages msg(MERGE, payload);
 	if ((sockfd = createConnection(ip, port)) == -1) return;
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
 	}
-	sleep(3); //TODO fix this? in a smarter way? index checking, smart buffer, that way no need to sleep here
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
@@ -182,7 +182,6 @@ void TcpSocket::putFile(string ip, string port, string localfilename, string sdf
 
 void TcpSocket::sendFile(int sockfd, FILE * fp, int size) {
 	int numbytes, sendSize;
-	int startSize = size;
 	char buf[DEFAULT_TCP_BLKSIZE];
 	bzero(buf, sizeof(buf));
 	while (!feof(fp) && size > 0) {
@@ -194,8 +193,6 @@ void TcpSocket::sendFile(int sockfd, FILE * fp, int size) {
 			perror("send");
 		}
 	}
-	int bytesSent = startSize - size;
-	//cout << "[SENDFILE] sent: " << to_string(bytesSent) << endl;
 }
 
 //exec, file, start, end
@@ -293,13 +290,18 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 		}
 		case MERGE: {
 			cout << "[MERGE] merging ..... " << msg.payload << endl;
-			vector<string> filesAndSizes = splitString(msg.payload, ",");
+			vector<string> metainfo = splitString(msg.payload, ",");
+			//correction if merge information made it into the header
+			string payload = msg.payload.substr(metainfo[0].size() + 1, stoi(metainfo[0]));
+			string extra = msg.payload.substr(metainfo[0].size() + 1 + stoi(metainfo[0]));
+			vector<string> filesAndSizes = splitString(payload, ",");
 			int returnType = stoi(filesAndSizes[0]);
+			char c;
 			string filedest = filesAndSizes[1], processed = "", filename = "";
+			cout << "[MERGE] type:" << messageTypes[returnType] << ", correction to extra -> " << extra << endl;
 			int dirSize = filesAndSizes.size();
-			int index = 2;
-			int fail = 0;
-			int bytesLeft = 0;
+			int index = 2, fail = 0, filesize = 0;
+			int bytesLeft = 0, offset = extra.size();
 			int buffersize = DEFAULT_TCP_BLKSIZE;
 			vector<string> format;
 			while (index < dirSize - 1){
@@ -307,29 +309,61 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				string scopy(filesAndSizes[index]);
 				format = splitString(scopy, "-"); //cut the tmp off
 				filename = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
-				//cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
-				try { filesize = stoi(filesAndSizes[index+1]); }
-				catch (...) { filesize = DEFAULT_TCP_BLKSIZE; }
+				cout << "[MERGE] (2-indexed):" << to_string(index) << " , dest:" << filename << " , size:" << filesAndSizes[index+1];
 				numbytes = 0;
+				filesize = stoi(filesAndSizes[index+1]);
 				bytesLeft = filesize;
 				buffersize = DEFAULT_TCP_BLKSIZE;
 				buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 				fp = fopen(filename.c_str(), "ab");
 				bzero(buf, sizeof(buf));
-				while (((numbytes=recv(sockfd, buf, buffersize, 0)) > 0) && (bytesLeft > 0)) {
+				if (extra.size()) {
+					offset = (offset <= buffersize) ? offset : buffersize;
+					memcpy(buf, extra.c_str(), offset);
+				}
+				while (((numbytes=recv(sockfd, buf + offset, buffersize - offset, 0)) > 0) && (bytesLeft > 0)) {
 					bytesLeft -= numbytes;
 					if (bytesLeft >= 0) fwrite(buf, sizeof(char), numbytes, fp);
 					buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 					bzero(buf, sizeof(buf));
+					if (offset > 0){
+						extra = extra.substr(offset);
+						offset = (extra.size() <= buffersize) ? extra.size() : buffersize;
+						memcpy(buf, extra.c_str(), offset);
+					}
 				}
-				//cout << " | bytesReceived: " << byteReceived << endl;
-				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
+				cout << " | received: " << byteReceived << endl;
 				fclose(fp);
-				//TODO error handle better
-				if (bytesLeft) { fail = 1; remove(filename.c_str()); } //bad if corrupt
+				////bad if corrupt
+				if (bytesLeft) {
+					fail = 1;
+					if (returnType == MAPLEACK) remove(filename.c_str());
+					else {
+						int removal = (filesize - bytesLeft);
+						fp = fopen(filename.c_str(), "rb");
+						fseek(fp, 0, SEEK_END);
+						int size = ftell(fp) - removal;
+						fseek(fp, 0, SEEK_SET);
+						FILE * copyFile = fopen("tmp-rewrite-corrupt-file", "ab");
+						cout <<"[MERGE] file corruption! removing " << to_string(removal) << " bytes" << endl;
+						c = fgetc(fp);
+					    while (c != EOF && (size > 0))
+					    {
+					        fputc(c, copyFile);
+					        c = fgetc(fp);
+							size--;
+					    }
+						fclose(fp);
+						remove(filename.c_str());
+						fclose(copyFile);
+						rename("tmp-rewrite-corrupt-file", filename.c_str());
+					}
+				}
 				else {
 					if (processed.size()) processed += ",";
-					processed += filesAndSizes[index]; //TTODO fix file names here
+					//return list of processed keys. Manipulate this in JUICE ack to account for directories
+					processed += format[1];
+					cout << "[MERGE] processed: " << processed << endl;
 				}
 				index += 2;
 			}

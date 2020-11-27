@@ -34,6 +34,7 @@ using namespace std;
 #define PORT "6000"
 
 #define LOGGING_FILE_NAME "logs.txt"
+#define EXEC_CMD "./" //python for python script, ./ for an executable
 
 // --- parameters (stay tuned) ---
 #define T_period 300000 // in microseconds

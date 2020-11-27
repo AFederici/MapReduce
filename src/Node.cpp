@@ -192,9 +192,14 @@ int Node::failureDetection(){
 
 					for (auto &e : mapleSending[get<0>(keyTuple)]){
 						vector<int> temp = randItems(1, fileList[get<0>(e)]);
-						mapleSending[hashRing->getValue(temp[0])].push_back(make_tuple(get<0>(e), get<1>(e)));
-						//workerRing->getValue(id) + "::" maple_exe + ":: " + s + "::" + sdfs_pre;
-						string mapleS = hashRing->getValue(temp[0]) + "::" + exe + "::" + get<0>(e)+ "::" + get<1>(e)+ "::" + sdfsPre;
+						auto task = make_tuple(get<0>(e), get<1>(e));
+						mapleSending[hashRing->getValue(temp[0])].push_back(task);
+						string processor = "";
+						for (auto &worker : workerTasks){
+							if (worker.second.count(task) > 0) processor = worker.first;
+						}
+						//sender + "::" + processor + "::" + exe + "::" + s;
+						string mapleS = hashRing->getValue(temp[0]) + "::" + processor + "::" + exe + "::" + get<0>(e)+ "::" + get<1>(e);
 						tcpServent->mapleMessages.push(mapleS);
 					}
 
@@ -798,7 +803,7 @@ void Node::replicateKeys(){
 	if(isLeader){
 		isBlackout = true;
 		for (auto &key : mapleKeys){
-			string file = sdfsPre + "-" + key;
+			string file = sdfsPre + key;
 			updateFileList(file, hashRingPosition);
 			fileSizes[file] = make_tuple(-1, -1); //we don't care
 			int workers = workerProcessing.size();
@@ -931,7 +936,7 @@ void Node::handleTcpMessage()
 					tcpServent->regMessages.push(msg.toString()); //re-add JUICE to queue
 				} else{
 					cout << "[JUICE] file has arrived" << endl;
-					string execName = "./" + inMsg[1];
+					string execName = EXEC_CMD + inMsg[1];
 					if (runExecutable(execName, inMsg[0]) < 0) { cout << "[EXEC] ERROR" << endl; break;}
 					vector<string> juicedFiles = splitString(tcpServent->getDirMetadata(), ",");
 					string leftToMerge = "";
@@ -957,19 +962,26 @@ void Node::handleTcpMessage()
 				if (!isLeader) break;
 				vector<string> completedJuices = splitString(inMsg[1], ",");
 				for (string &task : completedJuices){
-					auto element = make_tuple(task, "0");
+					cout << "[JUICEACK] task: " << task << " status: ";
+					string matchStr = sdfsPre + task;
+					auto element = make_tuple(matchStr, "0");
 					auto it = find(workerProcessing[inMsg[0]].begin(), workerProcessing[inMsg[0]].end(), element);
 					if (it != workerProcessing[inMsg[0]].end()) {
-						cout << "[JUICEACK] completed " << task << endl;
+						cout << "completed, ";
 						workerProcessing[inMsg[0]].erase(it);
 					}
+					cout << "uncomplete, ";
 				}
+				cout << endl;
 				if (!workerProcessing[inMsg[0]].size()) workerProcessing.erase(inMsg[0]);
 				if (!workerProcessing.size()) {
+					cout <<"[JUICEACK] replicate final results " << endl;
 					Messages outMsg(DNS, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + sdfsOut + "::" + sdfsOut + "::" + "-1" + "::" + "-1" + "::");
 					tcpServent->regMessages.push(outMsg.toString());
 					if (maplejuiceClear){
+						cout << "[JUICEACK] clearing files.... ";
 						for (auto &f : fileList){
+							cout << f.first << endl;
 							if (strncmp(f.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
 								Messages outMsg(DELETE, nodeInformation.ip + "::" + f.first);
 								//cout << "[DELETE] Got sdfsfilename: " << f.first << endl;
@@ -998,7 +1010,7 @@ void Node::handleTcpMessage()
 				cout << "[MAPLE] Leader starting new Maple phase" << endl;
 				if (inMsg.size() < 4) break;
 				string exe = inMsg[0], num_maples = inMsg[1], sdfs_dir = inMsg[3] + "-", s = "";
-				sdfsPre = inMsg[2];
+				sdfsPre = inMsg[2] + "-";
 				int workers = stoi(num_maples), ringSize = hashRing->nodePositions.size();
 				if (workers > ringSize-1) workers = ringSize-1;
 				int total_lines = 0, start = 0, id = 0;
@@ -1079,7 +1091,7 @@ void Node::handleTcpMessage()
 				if (!isLeader) {
 					//forward to know that the file was put okay
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, msg.toString());
-					string execName = "./" + inMsg[1];
+					string execName = EXEC_CMD + inMsg[1];
 					if (runExecutable(execName, inMsg[3]) < 0) { cout << "[EXEC] ERROR" << endl; break;}
 					string ackStr = nodeInformation.ip + "::" + inMsg[4] + "::" + inMsg[2]; //IP, file, chunk
 
@@ -1147,7 +1159,7 @@ void Node::handleTcpMessage()
 			        if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
 			            string entryName(entry->d_name);
 						mapleKeys.push_back(entryName.substr(matchLen));
-						string mapleOutput = sdfsPre + "-" + mapleKeys[mapleKeys.size()-1];
+						string mapleOutput = sdfsPre + mapleKeys[mapleKeys.size()-1];
 						ofstream keyFile;
 						keyFile.open(mapleOutput, ios::app);
 						ifstream toMerge(entry->d_name);
