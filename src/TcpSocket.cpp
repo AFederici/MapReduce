@@ -292,7 +292,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			break;
 		}
 		case MERGE: {
-			cout << "[MERGE] merging ..... " << endl;
+			cout << "[MERGE] merging ..... " << msg.payload << endl;
 			vector<string> filesAndSizes = splitString(msg.payload, ",");
 			int returnType = stoi(filesAndSizes[0]);
 			string filedest = filesAndSizes[1], processed = "", filename = "";
@@ -304,7 +304,8 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			vector<string> format;
 			while (index < dirSize - 1){
 				format.clear();
-				format = splitString(filesAndSizes[index], "-"); //cut the tmp off
+				string scopy(filesAndSizes[index]);
+				format = splitString(scopy, "-"); //cut the tmp off
 				filename = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
 				cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
 				filesize = stoi(filesAndSizes[index+1]);
