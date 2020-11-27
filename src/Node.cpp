@@ -821,9 +821,12 @@ void Node::replicateKeys(){
 }
 
 void Node::handleMaplejuiceQ(){
+
 	if (!maplejuiceQ.empty() && !workerRing->size()){
-		if (isBlackout) { cout << "waiting for blackout after maple " << endl; return; }
-		tcpServent->regMessages.push(maplejuiceQ.front());
+		if (isBlackout) { cout << "[QUEUE] waiting for blackout after maple " << endl; return; }
+		string msgCopy(maplejuiceQ.front());
+		cout << "[QUEUE] sending next maple/juice to be processed" << endl;
+		tcpServent->regMessages.push(msgCopy);
 		maplejuiceQ.pop();
 	}
 }
@@ -976,7 +979,7 @@ void Node::handleTcpMessage()
 						}
 					}
 					cout << "[JUICE] ------------ complete ---------- " << endl;
-					Messages startMsg(PHASESTART, "end maple");
+					Messages startMsg(PHASESTART, "end juice");
 					tcpServent->regMessages.push(startMsg.toString());
 				}
 				break;
@@ -1210,32 +1213,32 @@ void Node::handleTcpMessage()
 						int nodePosition = stoi(inMsg[1]);
 						int selectedNodePosition = nodePosition;
 						string sdfsfilename = inMsg[2], localfilename = inMsg[3];
-						cout << "[DNSGET] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename << ", localfilename: " << localfilename << endl;
+						//cout << "[DNSGET] Got " << "inMsgIP: " << inMsgIP << ", sdfsfilename: " << sdfsfilename << ", localfilename: " << localfilename << endl;
 						vector<int> positions = fileList[sdfsfilename];
 						if (positions.size() == 0) {
 							// the file is not available
-							cout << "[DNSGET] sdfsfilename " << sdfsfilename << " is not available" << endl;
+							//cout << "[DNSGET] sdfsfilename " << sdfsfilename << " is not available" << endl;
 							fileList.erase(sdfsfilename);
 							fileSizes.erase(sdfsfilename);
 							Messages outMsg(GETNULL, sdfsfilename+": the file is not available::");
 							this->tcpServent->sendMessage(inMsgIP, TCPPORT, outMsg.toString());
 							break;
 						}
-						cout << "[DNSGET] we have ";
+						//cout << "[DNSGET] we have ";
 						for (uint i=0; i<positions.size(); i++) { // pick any node other than the requested node
 							cout << positions[i] << " ";
 							if (positions[i]!=nodePosition) {
 								selectedNodePosition = positions[i];
 							}
 						}
-						cout << endl;
-						cout << "[DNSGET] we picks " << selectedNodePosition << endl;
+						//cout << endl;
+						//cout << "[DNSGET] we picks " << selectedNodePosition << endl;
 						pendingRequests[sdfsfilename] = tuple<int, int, int>(-1, -1, nodePosition);
 						pendingRequestSent[sdfsfilename] = tuple<int, int, int>(true, true, true);
 						string nodeIP = hashRing->getValue(selectedNodePosition);
 						pendingSenderRequests[sdfsfilename] = tuple<string, string, string>("", "", nodeIP);
 						Messages outMsg(REREPLICATEGET, to_string(nodePosition) + "::" + sdfsfilename+ "::" +localfilename);
-						cout << "[DNSGET] Ask node " << nodeIP << " to replicate on pos ";
+						//cout << "[DNSGET] Ask node " << nodeIP << " to replicate on pos ";
 						cout << to_string(nodePosition) << endl;
 						this->tcpServent->sendMessage(nodeIP, TCPPORT, outMsg.toString());
 					}
@@ -1309,8 +1312,8 @@ void Node::handleTcpMessage()
 					string sdfsfilename = inMsg[1];
 					string remoteLocalfilename = inMsg[2];
 					string localfilename = this->localFilelist[sdfsfilename];
-					cout << "[REREPLICATEGET] Got a request of sdfsfilename " << sdfsfilename << " to nodeIP " << nodeIP << endl;
-					cout << "[REREPLICATEGET] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
+					//cout << "[REREPLICATEGET] Got a request of sdfsfilename " << sdfsfilename << " to nodeIP " << nodeIP << endl;
+					//cout << "[REREPLICATEGET] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
 					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::"+remoteLocalfilename;
 					this->tcpServent->pendSendMessages.push(sendMsg);
 				}
@@ -1324,8 +1327,8 @@ void Node::handleTcpMessage()
 					string nodeIP = hashRing->getValue(nodePosition);
 					string sdfsfilename = inMsg[1];
 					string localfilename = this->localFilelist[sdfsfilename];
-					cout << "[REREPLICATE] Got a request of sdfsfilename " << sdfsfilename << " to nodeIP " << nodeIP << endl;
-					cout << "[REREPLICATE] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
+					//cout << "[REREPLICATE] Got a request of sdfsfilename " << sdfsfilename << " to nodeIP " << nodeIP << endl;
+					//cout << "[REREPLICATE] Put localfilename " << localfilename << " to nodeIP " << nodeIP << endl;
 					string sendMsg = nodeIP+"::"+localfilename+"::"+sdfsfilename+"::";
 					this->tcpServent->pendSendMessages.push(sendMsg);
 				}
@@ -1345,8 +1348,8 @@ void Node::handleTcpMessage()
 					string localfilename = inMsg[2];
 					localFilelist[sdfsfilename] = localfilename;
 					Messages outMsg(LEADERACK, this->nodeInformation.ip + "::" + to_string(this->hashRingPosition) + "::" + msg.payload);
-					cout << "[ACK] Done replicated sdfsfilename " << sdfsfilename;
-					cout << " on node " << nodePosition << ", and ACK back to the leader" << endl;
+					//cout << "[ACK] Done replicated sdfsfilename " << sdfsfilename;
+					//cout << " on node " << nodePosition << ", and ACK back to the leader" << endl;
 					this->tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
 				}
 
@@ -1361,7 +1364,7 @@ void Node::handleTcpMessage()
 						string sdfsfilename = inMsg[3];
 						string replicatedNodeIP = hashRing->getValue(nodePosition);
 
-						cout << "[LEADERACK] Got ACK inMsgIP: " << inMsgIP << " sdfsfilename: " << sdfsfilename << " done on " << replicatedNodeIP << endl;
+						//cout << "[LEADERACK] Got ACK inMsgIP: " << inMsgIP << " sdfsfilename: " << sdfsfilename << " done on " << replicatedNodeIP << endl;
 						string closestNodeIP = "";
 
 						// update fileList
@@ -1398,14 +1401,14 @@ void Node::handleTcpMessage()
 							pendingRequests.erase(sdfsfilename);
 							pendingRequestSent.erase(sdfsfilename);
 							pendingSenderRequests.erase(sdfsfilename);
-							cout << "[LEADERACK] 3 or more Replicated files are done" << endl;
+							//cout << "[LEADERACK] 3 or more Replicated files are done" << endl;
 							isBlackout = false;
 							break;
 						}
 						if((get<1>(pendingRequests[sdfsfilename])!=-1) && (!get<1>(pendingRequestSent[sdfsfilename]))){
 							Messages outMsg(REREPLICATE, to_string(get<1>(pendingRequests[sdfsfilename])) + "::" + sdfsfilename);
 							// cout << "Sending out rereplicate to " << inMsgIP << "with message " << outMsg.toString() << endl;
-							cout << "[LEADERACK] Ask node incoming " << inMsgIP << " to replicate on pos ";
+							//cout << "[LEADERACK] Ask node incoming " << inMsgIP << " to replicate on pos ";
 							cout << to_string(get<1>(pendingRequests[sdfsfilename])) << endl;
 							this->tcpServent->sendMessage(inMsgIP, TCPPORT, outMsg.toString());
 							pendingRequestSent[sdfsfilename] = tuple<int, int, int>(get<0>(pendingRequestSent[sdfsfilename]), true, get<2>(pendingRequestSent[sdfsfilename]));
@@ -1414,7 +1417,7 @@ void Node::handleTcpMessage()
 						if((get<2>(pendingRequests[sdfsfilename]) != -1) && (!get<2>(pendingRequestSent[sdfsfilename]))){
 							Messages outMsg(REREPLICATE, to_string(get<2>(pendingRequests[sdfsfilename])) + "::" + sdfsfilename);
 							// cout << "Sending out rereplicate to " << closestNodeIP << "with message " << outMsg.toString() << endl;
-							cout << "[LEADERACK] Ask node closest " << closestNodeIP << " to replicate on pos ";
+							//cout << "[LEADERACK] Ask node closest " << closestNodeIP << " to replicate on pos ";
 							cout << to_string(get<2>(pendingRequests[sdfsfilename])) << endl;
 							this->tcpServent->sendMessage(closestNodeIP, TCPPORT, outMsg.toString());
 							pendingRequestSent[sdfsfilename] = tuple<int, int, int>(get<0>(pendingRequestSent[sdfsfilename]), get<1>(pendingRequestSent[sdfsfilename]), true);
