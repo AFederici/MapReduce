@@ -877,7 +877,7 @@ void Node::handleTcpMessage()
 				vector<tuple<string,string,string>> aliveNodes;
 				cout << "[DIRECTORY] " << sdfsPre;
 				for (auto &e: fileList){
-					cout << e.first << " | " << to_string(get<1>(e.second)) << " ";
+					cout << e.first << " | ";
 					if (strncmp(e.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
 						cout << " was a match ";
 						directory.push_back(e.first);
