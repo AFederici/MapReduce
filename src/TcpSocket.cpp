@@ -140,7 +140,7 @@ void TcpSocket::mergeFiles(string ip, string port, string handler, string filede
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
 	}
-	sleep(2);
+	sleep(3); //TODO fix this? in a smarter way?
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
@@ -307,8 +307,9 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				string scopy(filesAndSizes[index]);
 				format = splitString(scopy, "-"); //cut the tmp off
 				filename = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
-				cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
-				filesize = stoi(filesAndSizes[index+1]);
+				//cout << "[MERGE] (2-indexed)index " << to_string(index) << " " << filename << " " << filesAndSizes[index+1] << endl;
+				try { filesize = stoi(filesAndSizes[index+1]); }
+				catch (...) { filesize = DEFAULT_TCP_BLKSIZE; }
 				numbytes = 0;
 				bytesLeft = filesize;
 				buffersize = DEFAULT_TCP_BLKSIZE;
@@ -325,7 +326,8 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				sleep(1);
 				//cout << "we have " << to_string(byteReceived) << " bytes from this connection" << endl;
 				fclose(fp);
-				if (bytesLeft) { fail = 1; remove(filename.c_str()); }
+				//TODO error handle better
+				if (bytesLeft) { fail = 1; remove(filename.c_str()); } //bad if corrupt
 				else {
 					if (processed.size()) processed += ",";
 					processed += filesAndSizes[index];
