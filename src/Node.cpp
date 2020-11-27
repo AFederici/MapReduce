@@ -825,7 +825,7 @@ void Node::handleMaplejuiceQ(){
 	if (!maplejuiceQ.empty() && !workerRing->size()){
 		if (isBlackout) { cout << "[QUEUE] waiting for blackout after maple " << endl; return; }
 		string msgCopy(maplejuiceQ.front());
-		cout << "[QUEUE] sending next maple/juice to be processed" << endl;
+		cout << "[QUEUE] sending next maple/juice to be processed " << msgCopy << endl;
 		tcpServent->regMessages.push(msgCopy);
 		maplejuiceQ.pop();
 	}
@@ -862,6 +862,7 @@ void Node::handleTcpMessage()
 					cout << "[JUICE] maple or juice in progress" << endl;
 					break;
 				}
+				cout << "[JUICE] master reseting things. Debug: " << msg.toString() << endl;
 				resetMapleJuice();
 				if (inMsg.size() < 6) cout << "[JUICE] message too short " << to_string(inMsg.size()) << endl; break;
 				//juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}
