@@ -140,7 +140,7 @@ void TcpSocket::mergeFiles(string ip, string port, string handler, string filede
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
 	}
-	sleep(3); //TODO fix this? in a smarter way?
+	sleep(3); //TODO fix this? in a smarter way? index checking, smart buffer, that way no need to sleep here
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
@@ -195,7 +195,7 @@ void TcpSocket::sendFile(int sockfd, FILE * fp, int size) {
 		}
 	}
 	int bytesSent = startSize - size;
-	cout << "[SENDFILE] sent: " << to_string(bytesSent) << endl;
+	//cout << "[SENDFILE] sent: " << to_string(bytesSent) << endl;
 }
 
 //exec, file, start, end
@@ -329,7 +329,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				if (bytesLeft) { fail = 1; remove(filename.c_str()); } //bad if corrupt
 				else {
 					if (processed.size()) processed += ",";
-					processed += filesAndSizes[index];
+					processed += filesAndSizes[index]; //TTODO fix file names here
 				}
 				index += 2;
 			}
