@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
 					continue;
 				}
 				Messages outMsg(JUICESTART, msg);
-				cout << "[JUICE] forwarding request to " << node->leaderIP << endl;
+				cout << "[JUICE] forwarding " << outMsg.toString() << " to " << node->leaderIP << endl;
 				node->tcpServent->sendMessage(node->leaderIP, TCPPORT, outMsg.toString());
 			} else {
 				cout << "[BLACKOUT] Leader cannot accept the request" << endl;

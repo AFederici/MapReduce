@@ -852,7 +852,7 @@ void Node::handleTcpMessage()
 					break;
 				}
 				resetMapleJuice();
-				if (inMsg.size() < 6) break;
+				if (inMsg.size() < 6) cout << "[JUICE] message too short " << to_string(inMsg.size()) << endl; break;
 				//juice_exe num_juices sdfs_intermediate_dir sdfs_out_file delete={0,1} hash_or_range={0,1}
 				cout << "[JUICE] Leader starting new Juice phase" << endl;
 				string includedDebug = "";
@@ -964,7 +964,7 @@ void Node::handleTcpMessage()
 					}
 					cout << "[JUICE] ------------ complete ---------- (besides replication and deletes lol)" << endl;
 					resetMapleJuice();
-					if (maplejuiceQ.size()){
+					if (!maplejuiceQ.empty()){
 						tcpServent->regMessages.push(maplejuiceQ.front());
 						maplejuiceQ.pop();
 					}
@@ -1153,7 +1153,7 @@ void Node::handleTcpMessage()
 					replicateKeys();
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
 					resetMapleJuice();
-					if (maplejuiceQ.size()){
+					if (!maplejuiceQ.empty()){
 						tcpServent->regMessages.push(maplejuiceQ.front());
 						maplejuiceQ.pop();
 					}
