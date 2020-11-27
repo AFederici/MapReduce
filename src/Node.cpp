@@ -1172,12 +1172,10 @@ void Node::handleTcpMessage()
 				break;
 			}
 
-			//because TCP if we get a fail, we know that the node failed
-			//so re-requesting the files to merge will be taken care of in failureDetection()
 			case MERGEFAIL: {
-				cout << "[MERGEFAIL] !!!!!!!!! at " << nodeInformation.ip << endl;
-				string tmpFiles = "tmp-" + inMsg[0] + "-";
-				cleanupTmpFiles(tmpFiles);
+				cout << "[MERGEFAIL] retrying!!!!!!!!! at " << nodeInformation.ip << endl;
+				Messages outMsg(STARTMERGE, "");
+				this->tcpServent->sendMessage(inMsg[0], TCPPORT, outMsg.toString());
 				break;
 			}
 

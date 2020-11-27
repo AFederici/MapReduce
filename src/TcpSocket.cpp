@@ -140,13 +140,13 @@ void TcpSocket::mergeFiles(string ip, string port, string handler, string filede
 	if (send(sockfd, msg.toString().c_str(), strlen(msg.toString().c_str()), 0) == -1) {
 		perror("send");
 	}
+	sleep(2);
 	while (index < dirSize - 1){
 		fp = fopen(toProcess[index].c_str(), "rb");
 		if (fp == NULL) {
 			printf("Could not open file to send %s.", toProcess[index].c_str());
 			continue;
 		}
-		sleep(1);
 		sendFile(sockfd, fp, stoi(toProcess[index+1]));
 		fclose(fp);
 		index += 2;
