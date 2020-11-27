@@ -89,6 +89,9 @@ void *runSenderThread(void *node)
 		// 5. check for regular TCP messages
 		nodeOwn->handleTcpMessage();
 
+		//5b. check for queue maple/juice messages
+		nodeOwn->handleMaplejuiceQ();
+
 		// 6. check leader (If hashRing is sent via heartbeat, then we have a leader)
 		if (!nodeOwn->checkLeaderExist()) { // If no leader
 			nodeOwn->tcpElectionProcessor();

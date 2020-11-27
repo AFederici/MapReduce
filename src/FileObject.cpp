@@ -43,11 +43,13 @@ void cleanupTmpFiles(string match){
     struct dirent *entry = nullptr;
     DIR *dp = nullptr;
     int matchLen = match.size();
+    int counter = 0;
     if ((dp = opendir(".")) == nullptr) { cout << "tmp directory error " << endl;}
     while ((entry = readdir(dp))){
         if (strncmp(entry->d_name, match.c_str(), matchLen) == 0){
-            remove(entry->d_name);
+            if (remove(entry->d_name) == 0) counter++;
         }
     }
+    cout << "[CLEANUP] remove: " << counter << " tmp- files" << endl;
     closedir(dp);
 }

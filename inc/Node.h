@@ -137,6 +137,7 @@ public:
 	void setUpLeader(string message, bool pending); //setup leader
 	void replicateKeys();
 	void resetMapleJuice();
+	void handleMaplejuiceQ();
 private:
 	string populateMembershipMessage(); //membershipList to string based on mode type
 	string populateIntroducerMembershipMessage(); //entire membership list to string

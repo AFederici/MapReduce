@@ -820,6 +820,14 @@ void Node::replicateKeys(){
 	}
 }
 
+void Node::handleMaplejuiceQ(){
+	if (!maplejuiceQ.empty() && !workerRing->size()){
+		if (isBlackout) { cout << "waiting for blackout after maple " << endl; return; }
+		tcpServent->regMessages.push(maplejuiceQ.front());
+		maplejuiceQ.pop();
+	}
+}
+
 void Node::handleTcpMessage()
 {
 	//Before we do anything here, we should have the leader check to see if the file list is consistent or not.
@@ -962,13 +970,8 @@ void Node::handleTcpMessage()
 							}
 						}
 					}
-					cout << "[JUICE] ------------ complete ---------- (besides replication and deletes lol)" << endl;
+					cout << "[JUICE] ------------ complete ---------- " << endl;
 					resetMapleJuice();
-					if (!maplejuiceQ.empty()){
-						while (isBlackout) sleep(5);
-						tcpServent->regMessages.push(maplejuiceQ.front());
-						maplejuiceQ.pop();
-					}
 				}
 				break;
 			}
@@ -1154,11 +1157,6 @@ void Node::handleTcpMessage()
 					replicateKeys();
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
 					resetMapleJuice();
-					if (!maplejuiceQ.empty()){
-						while (isBlackout) sleep(5);
-						tcpServent->regMessages.push(maplejuiceQ.front());
-						maplejuiceQ.pop();
-					}
 				}
 				break;
 			}
