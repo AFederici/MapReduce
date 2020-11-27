@@ -292,17 +292,16 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			cout << "[MERGE] merging ..... " << msg.payload << endl;
 			vector<string> metainfo = splitString(msg.payload, ",");
 			//correction if merge information made it into the header
-			string payload = msg.payload.substr(metainfo[0].size() + 1, stoi(metainfo[0]));
-			string extra = msg.payload.substr(metainfo[0].size() + 1 + stoi(metainfo[0]));
+			string payload = msg.payload.substr(metainfo[0].size() + 1, stoi(metainfo[0])), extra = "";
+			try { extra = msg.payload.substr(metainfo[0].size() + 1 + stoi(metainfo[0])); }
+			catch (const out_of_range&) { extra = ""; }
 			vector<string> filesAndSizes = splitString(payload, ",");
 			int returnType = stoi(filesAndSizes[0]);
 			char c;
 			string filedest = filesAndSizes[1], processed = "", filename = "";
 			cout << "[MERGE] type:" << messageTypes[returnType] << ", correction to extra -> " << extra << endl;
-			int dirSize = filesAndSizes.size();
-			int index = 2, fail = 0, filesize = 0;
-			int bytesLeft = 0, offset = extra.size();
-			int buffersize = DEFAULT_TCP_BLKSIZE;
+			int dirSize = filesAndSizes.size(), index = 2, fail = 0, filesize = 0;
+			int bytesLeft = 0, offset = extra.size(), buffersize = DEFAULT_TCP_BLKSIZE;
 			vector<string> format;
 			while (index < dirSize - 1){
 				format.clear();
@@ -327,8 +326,10 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 					buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 					bzero(buf, sizeof(buf));
 					if (offset > 0){
-						extra = extra.substr(offset);
-						offset = (extra.size() <= buffersize) ? extra.size() : buffersize;
+						try { extra = extra.substr(offset); }
+						catch ( const out_of_range&) { extra = ""; }
+						offset = extra.size();
+						offset = (offset <= buffersize) ? offset : buffersize;
 						memcpy(buf, extra.c_str(), offset);
 					}
 				}
