@@ -184,7 +184,7 @@ int Node::failureDetection(){
 					if (workerTasks.find(get<0>(keyTuple)) != workerTasks.end()){
 						workerProcessing[get<0>(mapleNodes[0])] = vecCopy;
 						for (auto el : vecCopy) workerTasks[get<0>(mapleNodes[0])].insert(el); //so we dont share a copy with processing
-						Messages startMsg(PHASESTART, "");
+						Messages startMsg(PHASESTART, "filling in for failed worker");
 						tcpServent->sendMessage(get<0>(mapleNodes[0]), TCPPORT, startMsg.toString());
 					}
 					workerProcessing.erase(get<0>(keyTuple));
@@ -889,7 +889,7 @@ void Node::handleTcpMessage()
 					workerRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
 					if (includedDebug.size()) includedDebug += " | ";
 					includedDebug += get<0>(e);
-					Messages startMsg(PHASESTART, "");
+					Messages startMsg(PHASESTART, "start juice");
 					tcpServent->sendMessage(get<0>(e), TCPPORT, startMsg.toString());
 				}
 				//cout << "[MAPLE] " << includedDebug << " are the worker nodes" << endl;
@@ -924,10 +924,11 @@ void Node::handleTcpMessage()
 				if (localFilelist.find(inMsg[0]) == localFilelist.end()){
 					//get request
 					Messages outMsg(DNSGET, nodeInformation.ip + "::" + to_string(hashRingPosition) + "::" + inMsg[0] + "::" + inMsg[0]);
-					//cout << "[GET] Got sdfsfilename: " << sdfsfilename << " with localfilename: " << localfilename << endl;
+					cout << "[JUICE] getting: " << inMsg[0] << endl;
 					tcpServent->sendMessage(leaderIP, TCPPORT, outMsg.toString());
 					tcpServent->regMessages.push(msg.toString()); //re-add JUICE to queue
 				} else{
+					cout << "[JUICE] file has arrived" << endl;
 					string execName = "./" + inMsg[1];
 					if (runExecutable(execName, inMsg[0]) < 0) { cout << "[EXEC] ERROR" << endl; break;}
 					vector<string> juicedFiles = splitString(tcpServent->getDirMetadata(), ",");
@@ -944,6 +945,7 @@ void Node::handleTcpMessage()
 					}
 					string header = leaderIP + "::" + TCPPORT + "::" + to_string(JUICE) + "::" + inMsg[2] + "::";
 					string mergeMsg = header + leftToMerge;
+					cout << "[JUICE] merge-> " << mergeMsg << endl;
 					this->tcpServent->mergeMessages.push(mergeMsg);
 				}
 				break;
@@ -955,7 +957,10 @@ void Node::handleTcpMessage()
 				for (string &task : completedJuices){
 					auto element = make_tuple(task, "0");
 					auto it = find(workerProcessing[inMsg[0]].begin(), workerProcessing[inMsg[0]].end(), element);
-					if (it != workerProcessing[inMsg[0]].end()) workerProcessing[inMsg[0]].erase(it);
+					if (it != workerProcessing[inMsg[0]].end()) {
+						cout << "[JUICEACK] completed " << task << endl;
+						workerProcessing[inMsg[0]].erase(it);
+					}
 				}
 				if (!workerProcessing[inMsg[0]].size()) workerProcessing.erase(inMsg[0]);
 				if (!workerProcessing.size()) {
@@ -971,13 +976,15 @@ void Node::handleTcpMessage()
 						}
 					}
 					cout << "[JUICE] ------------ complete ---------- " << endl;
-					resetMapleJuice();
+					Messages startMsg(PHASESTART, "end maple");
+					tcpServent->regMessages.push(startMsg.toString());
 				}
 				break;
 			}
 			case PHASESTART: {
-				cout << "[PHASESTART] gogogogo" <<endl;
-				resetMapleJuice(); break;
+				cout << "[PHASESTART] go " << inMsg[0] << endl;
+				resetMapleJuice();
+				break;
 			}
 			case MAPLESTART: {
 				//leader only function
@@ -1020,7 +1027,7 @@ void Node::handleTcpMessage()
 					workerRing->addNode(get<0>(e), hashingId(m, get<2>(e)));
 					if (includedDebug.size()) includedDebug += " | ";
 					includedDebug += get<0>(e);
-					Messages startMsg(PHASESTART, "");
+					Messages startMsg(PHASESTART, "start maple");
 					tcpServent->sendMessage(get<0>(e), TCPPORT, startMsg.toString());
 				}
 				vector<string> messagesToSend; //used so we get our full assignments before scheduling
@@ -1080,7 +1087,7 @@ void Node::handleTcpMessage()
 					tcpServent->sendMessage(leaderIP, TCPPORT, ackMsg.toString());
 					break;
 				}
-				cout << "[CHUNKACK] leader confirming " << inMsg[4] << "::" << inMsg[2] << " was received" << endl;
+				//cout << "[CHUNKACK] leader confirming " << inMsg[4] << "::" << inMsg[2] << " was received" << endl;
 				vector<tuple<string,string>> temp;
 				for (auto &e : mapleSending[inMsg[0]]){
 					if (get<0>(e).compare(inMsg[4]) == 0){
@@ -1156,7 +1163,8 @@ void Node::handleTcpMessage()
 				if (!workerTasks.size()) {
 					replicateKeys();
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
-					resetMapleJuice();
+					Messages startMsg(PHASESTART, "end maple");
+					tcpServent->regMessages.push(startMsg.toString());
 				}
 				break;
 			}
