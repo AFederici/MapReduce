@@ -38,6 +38,8 @@ void Node::startActive()
 {
 	queue<string> empty;
     swap( maplejuiceQ , empty );
+	queue<string> empty2;
+	swap( operationQ, empty2 );
 	resetMapleJuice();
 	restartElection();
 	// inserting its own into the list
@@ -827,12 +829,22 @@ void Node::replicateKeys(){
 
 void Node::handleMaplejuiceQ(){
 
-	if (!maplejuiceQ.empty() && !workerRing->size()){
-		if (isBlackout) { cout << "[QUEUE] waiting for blackout after maple " << endl; return; }
+	if (!maplejuiceQ.empty() && !workerRing->size() && !isBlackout){
 		string msgCopy(maplejuiceQ.front());
 		cout << "[QUEUE] sending next maple/juice to be processed " << msgCopy << endl;
 		tcpServent->regMessages.push(msgCopy);
 		maplejuiceQ.pop();
+	}
+}
+
+//right now this only takes care of deletes at end of juice
+//can extend queue further  to be able to queue operations from the cmdline
+void Node::handleOperationQ(){
+	if (!operationQ.empty() && !isBlackout){
+		string msgCopy(operationQ.front());
+		cout << "[QUEUE] sending next operation to be processed " << msgCopy << endl;
+		tcpServent->regMessages.push(msgCopy);
+		operationQ.pop();
 	}
 }
 
@@ -983,14 +995,14 @@ void Node::handleTcpMessage()
 							cout << f.first << endl;
 							if (strncmp(f.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
 								Messages outMsg(DELETE, nodeInformation.ip + "::" + f.first);
-								//cout << "[DELETE] Got sdfsfilename: " << f.first << endl;
-								tcpServent->regMessages.push(outMsg.toString());
+								operationQ.push(outMsg.toString());
 							}
 						}
 					}
 					cout << "[JUICE] ------------ complete ---------- " << endl;
 					Messages startMsg(PHASESTART, "end juice");
-					tcpServent->regMessages.push(startMsg.toString());
+					for (auto &node: workerTasks) { tcpServent->sendMessage(node.first, TCPPORT, startMsg.toString()); }
+					resetMapleJuice();
 				}
 				break;
 			}
@@ -1176,6 +1188,7 @@ void Node::handleTcpMessage()
 					replicateKeys();
 					cout << "[MAPLE] ------------ complete ---------- " << endl;
 					Messages startMsg(PHASESTART, "end maple");
+					for (auto &node: workerTasks) { tcpServent->sendMessage(node.first, TCPPORT, startMsg.toString()); }
 					tcpServent->regMessages.push(startMsg.toString());
 				}
 				break;

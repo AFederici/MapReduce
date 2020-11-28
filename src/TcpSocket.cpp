@@ -309,7 +309,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				string scopy(filesAndSizes[index]);
 				format = splitString(scopy, "-"); //cut the tmp off
 				filename = (filedest.size()) ? filedest : "tmp-" + returnIP + "-" + format[1];
-				cout << "[MERGE] (2-indexed):" << to_string(index) << " , dest:" << filename << " , size:" << filesAndSizes[index+1];
+				cout << "[MERGE] (2-indexed):" << to_string(index) << " , dest:" << filename << " , size:" << filesAndSizes[index+1] << endl;
 				numbytes = 0;
 				filesize = stoi(filesAndSizes[index+1]);
 				bytesLeft = filesize;

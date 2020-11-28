@@ -99,6 +99,7 @@ public:
 	map<string, vector<tuple<string, string>>> mapleSending; //originIP -> (file, chunk_start);
 	vector<string> mapleKeys; //keys produced in maple phase
 	queue<string> maplejuiceQ;
+	queue<string> operationQ; //need this to wait for blackouts
 	string exe;
 	string sdfsPre;
 	string sdfsOut;
@@ -139,6 +140,7 @@ public:
 	void replicateKeys();
 	void resetMapleJuice();
 	void handleMaplejuiceQ();
+	void handleOperationQ();
 private:
 	string populateMembershipMessage(); //membershipList to string based on mode type
 	string populateIntroducerMembershipMessage(); //entire membership list to string
