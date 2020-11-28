@@ -134,7 +134,7 @@ void TcpSocket::mergeFiles(string ip, string port, string handler, string filede
 	vector<string> toProcess = splitString(toSend, ",");
 	int dirSize = toProcess.size();
 	string payload = handler + "," + filedest + "," + toSend;
-	payload = to_string(payload.size() + 1) + "," + payload;
+	payload = to_string(payload.size()) + "," + payload;
 	cout << "[PUTDIR] payload: " << payload << " to " << ip << endl;
 	Messages msg(MERGE, payload);
 	if ((sockfd = createConnection(ip, port)) == -1) return;
@@ -337,6 +337,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				fclose(fp);
 				////bad if corrupt
 				if (bytesLeft) {
+					cout <<"[MERGE] file corruption! ";
 					fail = 1;
 					if (returnType == MAPLEACK) remove(filename.c_str());
 					else {
@@ -346,7 +347,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 						int size = ftell(fp) - removal;
 						fseek(fp, 0, SEEK_SET);
 						FILE * copyFile = fopen("tmp-rewrite-corrupt-file", "ab");
-						cout <<"[MERGE] file corruption! removing " << to_string(removal) << " bytes" << endl;
+						cout <<"removing " << to_string(removal) << " bytes";
 						c = fgetc(fp);
 					    while (c != EOF && (size > 0))
 					    {
@@ -358,6 +359,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 						remove(filename.c_str());
 						fclose(copyFile);
 						rename("tmp-rewrite-corrupt-file", filename.c_str());
+						cout << endl;
 					}
 				}
 				else {
