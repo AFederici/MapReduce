@@ -318,12 +318,15 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 				fp = fopen(filename.c_str(), "ab");
 				bzero(buf, sizeof(buf));
 				if (extra.size()) {
+					offset = extra.size();
 					offset = (offset <= buffersize) ? offset : buffersize;
 					memcpy(buf, extra.c_str(), offset);
 				}
-				while (((numbytes=recv(sockfd, buf + offset, buffersize - offset, 0)) > 0) && (bytesLeft > 0)) {
+				cout << "		bytesleft:" << to_string(bytesLeft) << ", offset: " << to_string(offset) << endl;
+				while ((((numbytes=recv(sockfd, buf + offset, buffersize - offset, 0)) >= 0) || (offset > 0)) && (bytesLeft > 0)) {
 					bytesLeft -= numbytes;
-					if (bytesLeft >= 0) fwrite(buf, sizeof(char), numbytes, fp);
+					bytesLeft -= offset;
+					if (bytesLeft >= 0) fwrite(buf, sizeof(char), numbytes + offset, fp);
 					buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
 					bzero(buf, sizeof(buf));
 					if (offset > 0){
@@ -333,13 +336,22 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 						offset = (offset <= buffersize) ? offset : buffersize;
 						memcpy(buf, extra.c_str(), offset);
 					}
+					cout << "		bytesleft:" << to_string(bytesLeft) << ", offset: " << to_string(offset) << ", numbytes: " << to_string(numbytes) << endl;
 				}
-				cout << " | received: " << byteReceived << endl;
 				fclose(fp);
 				////bad if corrupt
 				if (bytesLeft) {
-					cout <<"[MERGE] file corruption! ";
+					cout <<"[MERGE] file corruption! bytesLeft: " << to_string(bytesLeft);
 					fail = 1;
+					while ((numbytes < 0) && (bytesLeft > 0) && (offset > 0)){
+						try { extra = extra.substr(bytesLeft); }
+						catch ( const out_of_range&) { extra = ""; }
+						offset = extra.size();
+						buffersize = (bytesLeft < buffersize) ? bytesLeft : DEFAULT_TCP_BLKSIZE;
+						offset = (offset <= buffersize) ? offset : buffersize;
+						bytesLeft -= offset;
+						cout << ". error fix, move offet ahead: " << to_string(offset);
+					}
 					if (returnType == MAPLEACK) remove(filename.c_str());
 					else {
 						int removal = (filesize - bytesLeft);
@@ -348,7 +360,7 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 						int size = ftell(fp) - removal;
 						fseek(fp, 0, SEEK_SET);
 						FILE * copyFile = fopen("tmp-rewrite-corrupt-file", "ab");
-						cout <<"removing " << to_string(removal) << " bytes";
+						cout <<" | removing " << to_string(removal) << " bytes";
 						c = fgetc(fp);
 					    while (c != EOF && (size > 0))
 					    {
@@ -360,8 +372,8 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 						remove(filename.c_str());
 						fclose(copyFile);
 						rename("tmp-rewrite-corrupt-file", filename.c_str());
-						cout << endl;
 					}
+					cout << endl;
 				}
 				else {
 					if (processed.size()) processed += ",";

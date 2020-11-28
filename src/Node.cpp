@@ -880,14 +880,14 @@ void Node::handleTcpMessage()
 				if (workers > ringSize-1) workers = ringSize-1;
 				vector<string> directory;
 				vector<tuple<string,string,string>> aliveNodes;
-				cout << "[DIRECTORY] " << sdfsPre;
+				cout << "[DIRECTORY] - " << sdfsPre;
 				for (auto &e: fileList){
-					cout << e.first << " | ";
 					if (strncmp(e.first.c_str(), sdfsPre.c_str(), sdfsPre.size()) == 0){
-						cout << " was a match ";
+						cout << e.first << ", ";
 						directory.push_back(e.first);
 					}
 				}
+				cout << endl;
 				sort(directory.begin(), directory.end());
 				for (auto &e : membershipList) if (get<0>(e.first).compare(nodeInformation.ip)) aliveNodes.push_back(e.first);
 				vector<tuple<string,string,string>> juiceNodes = randItems(workers, aliveNodes);
@@ -962,15 +962,14 @@ void Node::handleTcpMessage()
 				if (!isLeader) break;
 				vector<string> completedJuices = splitString(inMsg[1], ",");
 				for (string &task : completedJuices){
-					cout << "[JUICEACK] task: " << task << " status: ";
+					cout << "[JUICEACK] task: " << task << " status: ...";
 					string matchStr = sdfsPre + task;
 					auto element = make_tuple(matchStr, "0");
 					auto it = find(workerProcessing[inMsg[0]].begin(), workerProcessing[inMsg[0]].end(), element);
 					if (it != workerProcessing[inMsg[0]].end()) {
-						cout << "completed, ";
+						cout << "completed.";
 						workerProcessing[inMsg[0]].erase(it);
 					}
-					cout << "uncomplete, ";
 				}
 				cout << endl;
 				if (!workerProcessing[inMsg[0]].size()) workerProcessing.erase(inMsg[0]);
