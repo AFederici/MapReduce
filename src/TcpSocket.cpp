@@ -297,9 +297,10 @@ int TcpSocket::messageHandler(int sockfd, string payloadMessage, string returnIP
 			catch (const out_of_range&) { extra = ""; }
 			vector<string> filesAndSizes = splitString(payload, ",");
 			int returnType = stoi(filesAndSizes[0]);
+			string returnTypeString = ((returnType == MAPLEACK)) ? "MAPLE" : "JUICE";
 			char c;
 			string filedest = filesAndSizes[1], processed = "", filename = "";
-			cout << "[MERGE] type:" << messageTypes[returnType] << ", correction to extra -> " << extra << endl;
+			cout << "[MERGE] type:" << returnTypeString << ", correction to extra -> " << extra << endl;
 			int dirSize = filesAndSizes.size(), index = 2, fail = 0, filesize = 0;
 			int bytesLeft = 0, offset = extra.size(), buffersize = DEFAULT_TCP_BLKSIZE;
 			vector<string> format;
